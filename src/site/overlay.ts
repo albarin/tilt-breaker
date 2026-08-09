@@ -104,7 +104,16 @@ export const OVERLAY_CSS = `
 
 export type Overlay = { show: (copy: OverlayCopy) => void; hide: () => void };
 
-/** Creates the overlay (hidden) and returns the handles to drive it. */
+/**
+ * Creates the overlay (hidden) and returns the handles to drive it.
+ *
+ * It covers the whole viewport at the top of the stacking order, so it must be easy to
+ * get out of: the button, Escape, or a click outside the card all dismiss it. One button
+ * as the only way out would leave the page unusable if anything went wrong with it.
+ *
+ * The shadow root is closed on purpose. Dismissing is meant to be easy for you, not for a
+ * script on the page reaching in to delete the thing.
+ */
 export function createOverlay(doc: Document): Overlay {
   const host = doc.createElement('div');
   host.style.display = 'none';
@@ -115,11 +124,19 @@ export function createOverlay(doc: Document): Overlay {
 
   const backdrop = doc.createElement('div');
   backdrop.className = 'backdrop';
+  backdrop.setAttribute('role', 'dialog');
+  backdrop.setAttribute('aria-modal', 'true');
+  // Clicks inside the card must not count as clicking away from it.
+  backdrop.addEventListener('click', (event) => {
+    if (event.target === backdrop) hide();
+  });
 
   const card = doc.createElement('div');
   card.className = 'card';
 
   const title = doc.createElement('h1');
+  title.id = 'title';
+  backdrop.setAttribute('aria-labelledby', title.id);
   const body = doc.createElement('p');
 
   const close = doc.createElement('button');
@@ -130,15 +147,23 @@ export function createOverlay(doc: Document): Overlay {
   backdrop.append(card);
   shadow.append(style, backdrop);
 
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') hide();
+  }
+
   function show(copy: OverlayCopy): void {
     title.textContent = copy.title;
     body.textContent = copy.body;
     if (host.parentNode === null) doc.body.append(host);
     host.style.display = 'block';
+    // Listening only while shown, so we leave nothing behind on the page.
+    doc.addEventListener('keydown', onKeyDown);
+    close.focus();
   }
 
   function hide(): void {
     host.style.display = 'none';
+    doc.removeEventListener('keydown', onKeyDown);
   }
 
   return { show, hide };

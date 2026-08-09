@@ -105,3 +105,37 @@ describe('stylesheet units', () => {
     expect(OVERLAY_CSS).toMatch(/font-size:\s*16px/);
   });
 });
+
+/**
+ * It covers the whole viewport at the top of the stacking order, so getting out of it
+ * must not hang on one button working.
+ */
+describe('dismissing', () => {
+  const mount = () => {
+    document.body.innerHTML = '';
+    const overlay = createOverlay(document);
+    overlay.show(REMATCH_COPY);
+    return { overlay, host: document.body.firstElementChild as HTMLElement };
+  };
+
+  it('Escape closes it', () => {
+    const { host } = mount();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(host.style.display).toBe('none');
+  });
+
+  it('other keys leave it alone', () => {
+    const { host } = mount();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    expect(host.style.display).toBe('block');
+  });
+
+  // Otherwise it would keep swallowing Escape long after it is gone.
+  it('stops listening once closed', () => {
+    const { overlay, host } = mount();
+    overlay.hide();
+    overlay.show(REMATCH_COPY);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(host.style.display).toBe('none');
+  });
+});

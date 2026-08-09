@@ -132,7 +132,7 @@ The site console carries the full trace under the `[tilt-breaker]` prefix.
 ## Checks
 
 ```sh
-pnpm test     # 136 tests (vitest + happy-dom)
+pnpm test     # 139 tests (vitest + happy-dom)
 pnpm check    # types (svelte-check)
 pnpm icons    # regenerates public/icon/*.png with no external dependencies
 ```
