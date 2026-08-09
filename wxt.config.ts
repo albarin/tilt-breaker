@@ -10,7 +10,7 @@ export default defineConfig({
   manifestVersion: 3,
 
   manifest: {
-    name: 'Game limit — chess.com',
+    name: 'Tilt Breaker',
     description:
       'Set a daily per-time-class game quota on chess.com and keep extra blitz out of your rapid.',
     permissions: ['storage', 'alarms'],
@@ -19,7 +19,7 @@ export default defineConfig({
     host_permissions: ['*://*.chess.com/*', 'https://api.chess.com/*'],
     browser_specific_settings: {
       gecko: {
-        id: 'chess-limit@alba',
+        id: 'tilt-breaker@alba',
         // MV3 has been stable in Firefox since 109; 115 is the ESR and a comfortable floor.
         strict_min_version: '115.0',
         // Everything is stored locally and nothing is sent to a server of ours. Calls to

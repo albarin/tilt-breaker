@@ -1,4 +1,4 @@
-# Game limit — chess.com
+# Tilt Breaker — chess.com
 
 A daily per-game-type game quota for chess.com. When blitz runs out it blocks new blitz
 games and leaves rapid alone. Extension for Chrome and Firefox (MV3).
@@ -127,7 +127,7 @@ domain classes (`time-selector-button-button`, `data-glyph="game-time-blitz"`) a
 preferred over design-system ones, which carry a hash and rotate: never select on a hashed
 `cc-*`.
 
-The site console carries the full trace under the `[chess-limit]` prefix.
+The site console carries the full trace under the `[tilt-breaker]` prefix.
 
 ## Checks
 

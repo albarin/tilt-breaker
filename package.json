@@ -1,5 +1,5 @@
 {
-  "name": "chess-limit",
+  "name": "tilt-breaker",
   "description": "Daily per-time-class game quota for chess.com",
   "private": true,
   "version": "0.0.0",

@@ -20,7 +20,7 @@
 </script>
 
 <main>
-  <h1>Game limit</h1>
+  <h1>Tilt Breaker</h1>
 
   {#if view === null}
     <p class="muted">Checking…</p>

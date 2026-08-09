@@ -16,7 +16,7 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener(
     (message: Message, _sender: unknown, sendResponse: (response: unknown) => void) => {
       handle(message).then(sendResponse, (error: unknown) => {
-        console.error('[chess-limit] failed to handle message', error);
+        console.error('[tilt-breaker] failed to handle message', error);
         sendResponse(undefined);
       });
       // Chrome requires `true` to answer asynchronously; Firefox accepts it too.
@@ -36,7 +36,7 @@ export default defineBackground(() => {
 
 async function refresh(): Promise<void> {
   const outcome = await syncDay({ now: Date.now(), force: true });
-  if (!outcome.ok) console.info('[chess-limit] refresh failed:', outcome.reason, outcome.detail);
+  if (!outcome.ok) console.info('[tilt-breaker] refresh failed:', outcome.reason, outcome.detail);
 }
 
 async function handle(message: Message): Promise<Status> {

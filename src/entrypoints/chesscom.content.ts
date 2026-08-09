@@ -14,9 +14,9 @@ import { REMATCH_COPY, copyFor, createOverlay, type OverlayCopy } from '../site/
 const POLL_MS = 400;
 const STATUS_REFRESH_MS = 15_000;
 /** Marks controls the stylesheet should grey out. */
-const BLOCKED_ATTR = 'data-chess-limit-blocked';
+const BLOCKED_ATTR = 'data-tilt-breaker-blocked';
 /** Marks what should not even be visible. */
-const HIDDEN_ATTR = 'data-chess-limit-hidden';
+const HIDDEN_ATTR = 'data-tilt-breaker-hidden';
 
 const CSS = `
   [${BLOCKED_ATTR}] {
@@ -159,5 +159,5 @@ export default defineContentScript({
 });
 
 function log(...args: unknown[]): void {
-  console.info('[chess-limit]', ...args);
+  console.info('[tilt-breaker]', ...args);
 }
