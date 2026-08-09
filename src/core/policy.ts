@@ -60,8 +60,13 @@ function tiltBlock(
   gameType: GameType,
   now: number,
 ): Extract<Decision, { reason: 'tilt' }> | null {
+  // A threshold below one would mean "block after every single loss", which is never
+  // what anyone meant: it is what an emptied settings field would leave behind.
+  const threshold = settings.tilt.losses;
+  if (!Number.isFinite(threshold) || threshold < 1) return null;
+
   const { losses, lastLossAt } = lossStreakOf(state, gameType);
-  if (lastLossAt === null || losses < settings.tilt.losses) return null;
+  if (lastLossAt === null || losses < threshold) return null;
   const until = lastLossAt + COOLDOWN_MINUTES * 60_000;
   return now < until ? { allow: false, reason: 'tilt', losses, until } : null;
 }
@@ -77,8 +82,9 @@ export function gapBlock(
   settings: Settings,
   now: number,
 ): Extract<Decision, { reason: 'gap' }> | null {
-  if (settings.gapMinutes <= 0 || state.lastGameEndedAt === undefined) return null;
-  const until = state.lastGameEndedAt + settings.gapMinutes * 60_000;
+  const minutes = settings.gapMinutes;
+  if (!Number.isFinite(minutes) || minutes <= 0 || state.lastGameEndedAt === undefined) return null;
+  const until = state.lastGameEndedAt + minutes * 60_000;
   return now < until ? { allow: false, reason: 'gap', until } : null;
 }
 

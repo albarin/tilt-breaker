@@ -262,3 +262,47 @@ describe('gap between games', () => {
     expect(rows.every((r) => r.decision.allow)).toBe(true);
   });
 });
+
+/**
+ * A settings field can be emptied, and `Number('')` is `0`. Neither rule may turn that
+ * into "block always"; both treat a nonsensical value as switched off.
+ */
+describe('nonsensical settings', () => {
+  const games = streak('blitz', ['loss']);
+  const state: DayState = { ...stateWith(games), lastGameEndedAt: NOON };
+  const now = NOON + 60_000;
+
+  it('a losing-streak threshold below one does not block after a single loss', () => {
+    for (const losses of [0, -3]) {
+      const settings = settingsWith({
+        limits: { bullet: null, blitz: null, rapid: null },
+        tilt: { losses },
+        gapMinutes: 0,
+      });
+      expect(evaluate({ state, settings, gameType: 'blitz', now }).allow, `losses=${losses}`).toBe(
+        true,
+      );
+    }
+  });
+
+  it('a threshold of one still blocks after a single loss, as asked', () => {
+    const settings = settingsWith({
+      limits: { bullet: null, blitz: null, rapid: null },
+      tilt: { losses: 1 },
+      gapMinutes: 0,
+    });
+    expect(evaluate({ state, settings, gameType: 'blitz', now })).toMatchObject({
+      allow: false,
+      reason: 'tilt',
+    });
+  });
+
+  it('a gap that is not a number does not block', () => {
+    const settings = settingsWith({
+      limits: { bullet: null, blitz: null, rapid: null },
+      tilt: { losses: 3 },
+      gapMinutes: Number.NaN,
+    });
+    expect(evaluate({ state, settings, gameType: 'blitz', now }).allow).toBe(true);
+  });
+});

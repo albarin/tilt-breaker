@@ -41,13 +41,42 @@
     }, SAVED_MS);
   }
 
-  /** Empty field means no limit. That is how rapid deliberately stays uncapped. */
+  /**
+   * A whole number at least `min`, or `null` if the field cannot give one.
+   *
+   * Every numeric field goes through this. Without it, clearing the losses field left
+   * `Number('') === 0` behind, and a threshold of zero blocks after a single loss.
+   */
+  function wholeNumber(raw: string, min: number): number | null {
+    const text = raw.trim();
+    if (text === '') return null;
+    const value = Number(text);
+    return Number.isInteger(value) && value >= min ? value : null;
+  }
+
+  /** Empty means no limit. That is how rapid deliberately stays uncapped. */
   function changeLimit(gameType: GameType, raw: string) {
     if (settings === null) return;
-    const text = raw.trim();
-    const value = text === '' ? null : Number(text);
-    if (value !== null && (!Number.isInteger(value) || value < 0)) return;
+    const value = raw.trim() === '' ? null : wholeNumber(raw, 0);
+    if (raw.trim() !== '' && value === null) return revert();
     void save({ limits: { ...settings.limits, [gameType]: value } });
+  }
+
+  /** Puts a rejected value back, so the field never shows something we did not store. */
+  function revert() {
+    settings = settings === null ? null : { ...settings };
+  }
+
+  function changeLosses(raw: string) {
+    const value = wholeNumber(raw, 1);
+    if (value === null) return revert();
+    void save({ tilt: { losses: value } });
+  }
+
+  function changeGap(raw: string) {
+    const value = wholeNumber(raw, 0);
+    if (value === null) return revert();
+    void save({ gapMinutes: value });
   }
 </script>
 
@@ -95,7 +124,7 @@
           min="0"
           step="5"
           value={settings.gapMinutes}
-          onchange={(e) => save({ gapMinutes: Number(e.currentTarget.value) })}
+          onchange={(e) => changeGap(e.currentTarget.value)}
         />
       </label>
     </section>
@@ -112,10 +141,7 @@
           min="1"
           step="1"
           value={settings.tilt.losses}
-          onchange={(e) =>
-            save({
-              tilt: { losses: Number(e.currentTarget.value) },
-            })}
+          onchange={(e) => changeLosses(e.currentTarget.value)}
         />
       </label>
     </section>
