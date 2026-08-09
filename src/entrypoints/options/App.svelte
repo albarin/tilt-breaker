@@ -93,7 +93,7 @@
       {#if avatar !== null}
         <img src={avatar} alt="" onerror={() => (avatar = null)} />
       {/if}
-      Account: <strong>{detectedAccount}</strong>
+      <strong>{detectedAccount}</strong>
     {:else}
       No account yet. Open <a href="https://www.chess.com/" target="_blank" rel="noreferrer"
         >chess.com</a
