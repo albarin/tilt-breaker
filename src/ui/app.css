@@ -25,13 +25,16 @@
 }
 
 /*
- * Both, not just the body. A background on the body only reaches the canvas by
- * propagation, and in the popup window that left a pale edge around the content.
+ * On both, and as a literal rather than var(--bg).
+ *
+ * The browser picks the popup window's own background before the stylesheet has applied,
+ * so it cannot resolve a custom property at that point and falls back to white — which is
+ * the pale frame around the content. A literal is available immediately.
  */
 html,
 body {
   margin: 0;
-  background: var(--bg);
+  background: #262421;
   color: var(--text);
 }
 
