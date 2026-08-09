@@ -1,7 +1,8 @@
 import { evaluate, type Decision } from '../core/policy';
 import { GAME_TYPES, type GameType } from '../core/types';
 import type { Message, Status } from '../messaging';
-import { getSettings, rememberDetectedUsername } from '../state/storage';
+import { fetchAvatar } from '../api/chesscom-api';
+import { avatarItem, getSettings, rememberDetectedUsername } from '../state/storage';
 import { syncDay } from '../state/sync';
 
 const REFRESH_ALARM = 'refresh';
@@ -39,6 +40,12 @@ async function refresh(): Promise<void> {
   if (!outcome.ok) console.info('[tilt-breaker] refresh failed:', outcome.reason, outcome.detail);
 }
 
+/** Fetched once per account. Cosmetic, so it never blocks answering the content script. */
+async function refreshAvatar(username: string, accountChanged: boolean): Promise<void> {
+  if (!accountChanged && (await avatarItem.getValue()) !== null) return;
+  await avatarItem.setValue(await fetchAvatar(username));
+}
+
 async function handle(message: Message): Promise<Status> {
   const now = Date.now();
   const settings = await getSettings();
@@ -46,6 +53,8 @@ async function handle(message: Message): Promise<Status> {
   // A different signed-in account invalidates what we stored, so re-query immediately.
   const accountChanged =
     message.username != null && (await rememberDetectedUsername(message.username));
+
+  if (message.username != null) void refreshAvatar(message.username, accountChanged);
 
   const outcome = await syncDay({ now, force: accountChanged || message.force === true });
 

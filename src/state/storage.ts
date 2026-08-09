@@ -22,6 +22,9 @@ const snapshotItem = storage.defineItem<DaySnapshot | null>('local:daySnapshot',
   fallback: null,
 });
 
+/** Avatar of the detected account. Purely decorative, so it may well be `null`. */
+export const avatarItem = storage.defineItem<string | null>('local:avatar', { fallback: null });
+
 /**
  * End of the most recent game we have ever seen, across days.
  *

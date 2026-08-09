@@ -113,3 +113,24 @@ export async function fetchGamesCovering(input: {
 
   return { games, unchanged, lastModified: stamps };
 }
+
+/**
+ * The account's avatar URL, or `null` if it has none or the profile cannot be read.
+ *
+ * Never throws: an avatar is decoration, and failing to fetch one must not disturb the
+ * counting that shares this client.
+ */
+export async function fetchAvatar(
+  username: string,
+  fetchImpl: Fetcher = fetch,
+): Promise<string | null> {
+  try {
+    const user = encodeURIComponent(username.toLowerCase());
+    const response = await fetchImpl(`https://api.chess.com/pub/player/${user}`);
+    if (!response.ok) return null;
+    const body = (await response.json()) as { avatar?: string };
+    return body.avatar ?? null;
+  } catch {
+    return null;
+  }
+}

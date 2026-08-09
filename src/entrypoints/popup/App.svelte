@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { detectedUsernameItem } from '../../state/storage';
+  import { avatarItem, detectedUsernameItem } from '../../state/storage';
   import { loadView, type View } from '../../ui/load';
   import { COLORS, NAMES, blockReason, formatTime, usedFraction } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
 
   let view = $state<View | null>(null);
   let account = $state<string | null>(null);
+  let avatar = $state<string | null>(null);
 
   /**
    * Only game types that have a quota are shown.
@@ -34,6 +35,7 @@
 
   async function refresh() {
     account = await detectedUsernameItem.getValue();
+    avatar = await avatarItem.getValue();
     view = await loadView();
   }
 </script>
@@ -41,7 +43,15 @@
 <main>
   <header>
     <h1>Tilt Breaker</h1>
-    {#if account !== null}<span class="account">{account}</span>{/if}
+    {#if account !== null}
+      <span class="account">
+        <!-- Decoration: if it fails to load it just goes away, name and all else stay. -->
+        {#if avatar !== null}
+          <img src={avatar} alt="" onerror={() => (avatar = null)} />
+        {/if}
+        {account}
+      </span>
+    {/if}
   </header>
 
   {#if view === null}
@@ -113,7 +123,8 @@
 
   header {
     display: flex;
-    align-items: baseline;
+    /* Centred rather than on the baseline: the avatar has no baseline to sit on. */
+    align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
     margin-bottom: 1.1rem;
@@ -126,11 +137,23 @@
   }
 
   .account {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
     color: var(--muted);
     font-size: 0.9375rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .account img {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    border-radius: 0.25rem;
+    object-fit: cover;
   }
 
   ul {

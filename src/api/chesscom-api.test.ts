@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { archiveUrl, fetchGamesCovering, monthKey, monthsCovering } from './chesscom-api';
+import {
+  archiveUrl,
+  fetchAvatar,
+  fetchGamesCovering,
+  monthKey,
+  monthsCovering,
+} from './chesscom-api';
 
 const at = (iso: string) => new Date(iso).getTime();
 
@@ -124,5 +130,29 @@ describe('fetchGamesCovering', () => {
       expect(result.unchanged).toBe(false);
       expect(result.games.map((g) => g.url)).toEqual(['new']);
     });
+  });
+});
+
+describe('fetchAvatar', () => {
+  it('returns the avatar from the profile', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response({ avatar: 'https://img/x.png' }));
+    await expect(fetchAvatar('alba', fetchImpl)).resolves.toBe('https://img/x.png');
+  });
+
+  it('accounts without one give null', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response({ username: 'alba' }));
+    await expect(fetchAvatar('alba', fetchImpl)).resolves.toBeNull();
+  });
+
+  /**
+   * An avatar is decoration. Unlike the archive, a failure here must stay quiet: it
+   * shares this client with the counting, which must not be disturbed by it.
+   */
+  it('never throws, whatever goes wrong', async () => {
+    const notFound = vi.fn().mockResolvedValue(response({}, 404));
+    await expect(fetchAvatar('alba', notFound)).resolves.toBeNull();
+
+    const broken = vi.fn().mockRejectedValue(new Error('offline'));
+    await expect(fetchAvatar('alba', broken)).resolves.toBeNull();
   });
 });
