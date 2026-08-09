@@ -3,6 +3,8 @@
 A daily per-game-type game quota for chess.com. When blitz runs out it blocks new blitz
 games and leaves rapid alone. Extension for Chrome and Firefox (MV3).
 
+Not affiliated with Chess.com. It only uses their public API and your own account.
+
 ## Why it exists
 
 Chess.com offers no way to limit yourself. This extension counts what you play and cuts
@@ -151,6 +153,25 @@ preferred over design-system ones, which carry a hash and rotate: never select o
 `cc-*`.
 
 The site console carries the full trace under the `[tilt-breaker]` prefix.
+
+## Building from source
+
+Reproducing the submitted packages, byte-for-byte inputs aside:
+
+```sh
+corepack enable          # or install pnpm 10 yourself
+pnpm install --frozen-lockfile
+pnpm zip                 # → .output/tilt-breaker-<version>-chrome.zip
+pnpm zip:firefox         # → .output/tilt-breaker-<version>-firefox.zip + -sources.zip
+```
+
+Built with Node 20+ and pnpm 10 (both pinned in `package.json`). The toolchain is
+[WXT](https://wxt.dev) over Vite, with Svelte 5 and TypeScript; `wxt.config.ts` holds the
+manifest, which WXT emits per browser — MV3 in both, `service_worker` for Chrome and
+`background.scripts` for Firefox.
+
+There is no minification step to undo: the bundles under `.output` correspond directly to
+the sources in `src`.
 
 ## Checks
 

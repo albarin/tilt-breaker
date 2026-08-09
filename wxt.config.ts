@@ -11,8 +11,10 @@ export default defineConfig({
 
   manifest: {
     name: 'Tilt Breaker',
+    // The non-affiliation note is not decoration: both stores are strict about third
+    // party names, and the description has to mention chess.com to make any sense.
     description:
-      'Set a daily per-time-class game quota on chess.com and keep extra blitz out of your rapid.',
+      'Daily game limits for chess.com, so extra blitz stops eating your rapid. Not affiliated with Chess.com.',
     permissions: ['storage', 'alarms'],
     // In a tab rather than the small dialog: settings is a full form.
     options_ui: { open_in_tab: true },
