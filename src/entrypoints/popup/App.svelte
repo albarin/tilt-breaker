@@ -39,45 +39,51 @@
   {#if view === null}
     <p class="muted">Checking…</p>
   {:else}
+    <!--
+      With no account there is nothing to count, so the rows would be three empty
+      placeholders pretending to be data. Only the notice shows.
+    -->
     {#if view.problem === 'no-account'}
       <p class="warning">
-        No account yet. Open chess.com while signed in — it can take a few seconds, and
-        this updates on its own.
+        No account yet. Open chess.com while signed in — it can take a minute, come back
+        later.
       </p>
-    {:else if view.problem === 'network-error'}
-      <p class="warning">Could not reach chess.com. This is the last data known.</p>
+    {:else}
+      {#if view.problem === 'network-error'}
+        <p class="warning">Could not reach chess.com. This is the last data known.</p>
+      {/if}
+
+      {#if view.gapUntil !== undefined}
+        <p class="gap">Next game at {formatTime(view.gapUntil)}</p>
+      {/if}
+
+      <ul>
+        {#each limited as row (row.gameType)}
+          {@const reason = blockReason(row)}
+          <li class:blocked={reason !== null}>
+            <div class="row">
+              <span class="name"><Icon gameType={row.gameType} />{NAMES[row.gameType]}</span>
+              <span class="count">{row.used}<span class="of">/{row.limit}</span></span>
+            </div>
+
+            <!-- The bar says at a glance what a redundant "N left" used to repeat. -->
+            <div class="bar">
+              <div
+                class="fill"
+                style:width="{usedFraction(row) * 100}%"
+                style:background={reason === null ? COLORS[row.gameType] : '#b0574f'}
+              ></div>
+            </div>
+
+            {#if reason !== null}
+              <p class="note">{reason}</p>
+            {:else if row.lossStreak > 1}
+              <p class="note streak">{row.lossStreak} losses in a row</p>
+            {/if}
+          </li>
+        {/each}
+      </ul>
     {/if}
-
-    {#if view.gapUntil !== undefined}
-      <p class="gap">Next game at {formatTime(view.gapUntil)}</p>
-    {/if}
-
-    <ul>
-      {#each limited as row (row.gameType)}
-        {@const reason = blockReason(row)}
-        <li class:blocked={reason !== null}>
-          <div class="row">
-            <span class="name"><Icon gameType={row.gameType} />{NAMES[row.gameType]}</span>
-            <span class="count">{row.used}<span class="of">/{row.limit}</span></span>
-          </div>
-
-          <!-- The bar says at a glance what a redundant "N left" used to repeat. -->
-          <div class="bar">
-            <div
-              class="fill"
-              style:width="{usedFraction(row) * 100}%"
-              style:background={reason === null ? COLORS[row.gameType] : '#b0574f'}
-            ></div>
-          </div>
-
-          {#if reason !== null}
-            <p class="note">{reason}</p>
-          {:else if row.lossStreak > 1}
-            <p class="note streak">{row.lossStreak} losses in a row</p>
-          {/if}
-        </li>
-      {/each}
-    </ul>
 
     <button onclick={() => browser.runtime.openOptionsPage()}>Settings</button>
   {/if}

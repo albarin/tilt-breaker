@@ -56,7 +56,7 @@
     {#if detectedAccount !== null}
       Account: <strong>{detectedAccount}</strong>
     {:else}
-      No account yet. Open chess.com while signed in — it can take a few seconds.
+      No account yet. Open chess.com while signed in — it can take a minute.
     {/if}
   </p>
 
