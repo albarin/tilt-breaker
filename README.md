@@ -116,15 +116,17 @@ shows up seconds after it ends — the 12-hour refresh the docs mention belongs 
 endpoints. Requests carry `If-Modified-Since` because the archive runs close to a megabyte
 mid-month.
 
-The API has exactly one blind spot: **it only knows finished games**. That leaves a
-few-second window between finishing a game and the archive learning about it — precisely
-where the rematch button sits.
+The API has exactly one blind spot: **it takes a few seconds to publish a finished game**.
+Until it does, the gap between games is measured from the _previous_ one — and after a
+long game that gap has already expired, so nothing blocks. Short games hide it, because
+the previous game was recent enough that the stale gap happened to still be running.
 
-Blocking rematch always closes that window with nothing to track: the only way to start
-another is walking back to the lobby, and that navigation takes far longer than the API
-needs. A behavioural decision that turned out to be the technical simplification too.
+Blocking rematch does not close this on its own: it only covers the modal, not walking
+back to the lobby. So the content script reports the moment one of your games finishes,
+and the gap starts from there. The stored end never moves backwards, so the archive can
+only ever confirm it.
 
-So the only thing read from the site is which button you clicked. `location.pathname` is
+Beyond that, the only thing read from the site is which button you clicked. `location.pathname` is
 polled every 400 ms to refresh the count on page changes; `history.pushState` is **not**
 patched, because from a content script's isolated world that patch never sees the page's
 own calls.
@@ -176,7 +178,7 @@ the sources in `src`.
 ## Checks
 
 ```sh
-pnpm test          # 142 tests (vitest + happy-dom)
+pnpm test          # 149 tests (vitest + happy-dom)
 pnpm check         # types (svelte-check)
 pnpm format        # prettier, configured to match what the code already used
 pnpm format:check  # the same, read-only

@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   classifyClick,
   findRematchButtons,
+  gameIdFromPath,
   gameTypeFromQuickPlay,
+  hasGameOverModal,
   readOwnUsername,
   readSelectedGameType,
   gameTypeOfOption,
@@ -262,5 +264,31 @@ describe('quick-start links', () => {
     for (const id of ['lobby', 'bots', 'friend']) {
       expect(classifyClick(el(id)), id).toEqual({ kind: 'other' });
     }
+  });
+});
+
+describe('spotting the end of a game', () => {
+  const MODAL_OPEN = '<div class="game-over-modal-shell-container"><button>Rematch</button></div>';
+
+  it('reads the game id from both URL shapes', () => {
+    expect(gameIdFromPath('/game/172719499530')).toBe('172719499530');
+    expect(gameIdFromPath('/game/live/172348397066')).toBe('172348397066');
+  });
+
+  // Correspondence is never counted, so its games are not watched either.
+  it('ignores anything that is not a live game', () => {
+    expect(gameIdFromPath('/game/daily/12345')).toBeNull();
+    expect(gameIdFromPath('/play/online')).toBeNull();
+    expect(gameIdFromPath('/')).toBeNull();
+  });
+
+  it('sees the modal that marks the finish', () => {
+    render(MODAL_OPEN);
+    expect(hasGameOverModal(document)).toBe(true);
+  });
+
+  it('does not see one mid-game', () => {
+    render('<div class="board-layout-main"></div>');
+    expect(hasGameOverModal(document)).toBe(false);
   });
 });

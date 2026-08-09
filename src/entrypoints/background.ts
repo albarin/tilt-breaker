@@ -7,6 +7,7 @@ import {
   detectedUsernameItem,
   getSettings,
   rememberDetectedUsername,
+  rememberLastGameEnd,
 } from '../state/storage';
 import { syncDay } from '../state/sync';
 
@@ -65,6 +66,10 @@ async function handle(message: Message): Promise<Status> {
     message.username != null && (await rememberDetectedUsername(message.username));
 
   if (message.username != null) void refreshAvatar(message.username, accountChanged);
+
+  // Recorded before asking the API, which will not know about it for a few seconds yet.
+  // rememberLastGameEnd never moves backwards, so the archive can only confirm this.
+  if (message.gameEnded === true) await rememberLastGameEnd(now);
 
   const outcome = await syncDay({ now, force: accountChanged || message.force === true });
 

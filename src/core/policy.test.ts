@@ -306,3 +306,40 @@ describe('nonsensical settings', () => {
     expect(evaluate({ state, settings, gameType: 'blitz', now }).allow).toBe(true);
   });
 });
+
+/**
+ * The bug a user hit: rapid games back to back with a 5-minute gap configured.
+ *
+ * The gap runs from the last game's end, which comes from the archive — and the archive
+ * takes a few seconds to publish a game. Until it does, the stored end is the *previous*
+ * game's.
+ *
+ * Short games hid this: the previous bullet game ended a couple of minutes ago, so the
+ * stale gap was still running and blocked by accident. After a 20-minute rapid the stale
+ * gap has long expired and nothing stands in the way.
+ */
+describe('gap while the archive catches up', () => {
+  const settings = settingsWith({
+    limits: { bullet: null, blitz: null, rapid: null },
+    gapMinutes: 5,
+  });
+  const allows = (lastGameEndedAt: number, now: number) =>
+    evaluate({ state: { ...stateWith([]), lastGameEndedAt }, settings, gameType: 'rapid', now })
+      .allow;
+
+  it('a stale end from a long game leaves nothing blocking', () => {
+    // What the extension knew before the just-finished game reached the archive.
+    expect(allows(NOON - 20 * 60_000, NOON)).toBe(true);
+  });
+
+  it('reporting the end at once is what closes it', () => {
+    // The content script reports the finish immediately, so the gap runs from now.
+    expect(allows(NOON, NOON + 60_000)).toBe(false);
+    expect(allows(NOON, NOON + 6 * 60_000)).toBe(true);
+  });
+
+  // Why short games never showed it.
+  it('after a short game the stale end blocked by accident', () => {
+    expect(allows(NOON - 2 * 60_000, NOON)).toBe(false);
+  });
+});

@@ -6,10 +6,12 @@ import {
   SEL,
   classifyClick,
   findRematchButtons,
+  gameIdFromPath,
   gameTypeFromQuickPlay,
+  gameTypeOfOption,
+  hasGameOverModal,
   readOwnUsername,
   readSelectedGameType,
-  gameTypeOfOption,
 } from '../site/chesscom';
 import { REMATCH_COPY, copyFor, createOverlay, type OverlayCopy } from '../site/overlay';
 
@@ -45,6 +47,10 @@ export default defineContentScript({
 
   main(ctx) {
     let lastPath = '';
+    /** The game on screen, and whether we have already reported it finishing. */
+    let watchedGame: string | null = null;
+    const reported = new Set<string>();
+    const reviewing = new Set<string>();
     let decisions: Partial<Record<GameType, Decision>> = {};
     let blockRematch = false;
 
@@ -73,11 +79,15 @@ export default defineContentScript({
       (document.head ?? document.documentElement).append(style);
     }
 
-    async function refreshStatus(force = false): Promise<void> {
+    async function refreshStatus(force = false, gameEnded = false): Promise<void> {
       try {
         // The signed-in account rides along on every request: that is how the background
         // knows which user to count without anyone typing it into settings.
-        const status = await sendMessage({ force, username: readOwnUsername(document) });
+        const status = await sendMessage({
+          force,
+          username: readOwnUsername(document),
+          ...(gameEnded ? { gameEnded } : {}),
+        });
         decisions = status.decisions;
         blockRematch = status.blockRematch;
       } catch (error) {
@@ -162,6 +172,36 @@ export default defineContentScript({
         void refreshStatus(true);
       }
       paint();
+      watchGameEnd();
+    }
+
+    /**
+     * Reports the moment one of your games finishes.
+     *
+     * The gap between games cannot wait for the archive: it takes a few seconds to
+     * publish a game, and until it does the gap is measured from the *previous* one. After
+     * a long game that is already expired, so nothing blocks and you can start another
+     * straight away. Short games hid this, because the previous one was recent enough that
+     * the stale gap happened to still be running.
+     *
+     * A modal already on screen when we arrive means a finished game opened to review, not
+     * one being played.
+     */
+    function watchGameEnd(): void {
+      const id = gameIdFromPath(location.pathname);
+      if (id === null || reviewing.has(id) || reported.has(id)) return;
+
+      if (watchedGame !== id) {
+        watchedGame = id;
+        if (hasGameOverModal(document)) reviewing.add(id);
+        return;
+      }
+
+      if (hasGameOverModal(document)) {
+        reported.add(id);
+        log('game finished:', id);
+        void refreshStatus(true, true);
+      }
     }
   },
 });

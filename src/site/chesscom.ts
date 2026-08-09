@@ -60,6 +60,26 @@ export const SEL = {
   ownProfileLink: '#sidebar-main-menu a[href*="/member/"]',
 } as const;
 
+/**
+ * The id of the game being played, from the URL.
+ *
+ * Two shapes exist for the same game: `/game/172719499530` while you play it, and
+ * `/game/live/172348397066` in the archive. `/game/daily/…` is correspondence and stays out.
+ */
+export function gameIdFromPath(pathname: string): string | null {
+  return /^\/game\/(?:live\/)?(\d+)/.exec(pathname)?.[1] ?? null;
+}
+
+/**
+ * Is the game-over modal on screen?
+ *
+ * Used to tell that the game you were playing has just finished — and, when it is already
+ * there the moment you arrive, that this is a game you opened to review rather than play.
+ */
+export function hasGameOverModal(root: ParentNode): boolean {
+  return root.querySelector(SEL.gameOverShell) !== null;
+}
+
 /** The game type chess.com writes into its icons. `game-time-daily` is not limited. */
 function gameTypeFromGlyph(glyph: string | null | undefined): GameType | null {
   switch (glyph) {
