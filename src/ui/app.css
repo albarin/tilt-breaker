@@ -8,6 +8,17 @@
 }
 
 :root {
+  /*
+   * Shared palette. Only the values both pages use live here; anything one of them
+   * alone needs stays in its own component.
+   */
+  --bg: #262421;
+  --field: #1f1e1c;
+  --border: #4a4642;
+  --text: #f2f0ed;
+  --muted: #8b8681;
+  --green: #81b64c;
+
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -15,12 +26,12 @@
 
 body {
   margin: 0;
-  background: #262421;
-  color: #f2f0ed;
+  background: var(--bg);
+  color: var(--text);
 }
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid #81b64c;
+  outline: 2px solid var(--green);
   outline-offset: 2px;
 }

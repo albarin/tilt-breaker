@@ -94,8 +94,8 @@
   main {
     width: 22rem;
     padding: 1.25rem 1.25rem 1.4rem;
-    background: #262421;
-    color: #f2f0ed;
+    background: var(--bg);
+    color: var(--text);
     font-family:
       system-ui,
       -apple-system,
@@ -151,7 +151,7 @@
   }
 
   .of {
-    color: #8b8681;
+    color: var(--muted);
     font-size: 0.9375rem;
     font-weight: 400;
   }
@@ -159,7 +159,7 @@
   .bar {
     height: 0.3rem;
     border-radius: 0.15rem;
-    background: #1f1e1c;
+    background: var(--field);
     overflow: hidden;
   }
 
@@ -209,7 +209,7 @@
 
   .muted {
     margin: 0;
-    color: #8b8681;
+    color: var(--muted);
     font-size: 1rem;
   }
 

@@ -96,49 +96,37 @@ export default defineContentScript({
       log('blocked:', reason);
     }
 
+    /**
+     * Cancels the click if that game type is spent. A `null` game type is correspondence
+     * or something we could not read, and never blocks.
+     */
+    function blockIfSpent(event: MouseEvent, gameType: GameType | null): void {
+      const decision = blockedReason(gameType);
+      if (decision === null || gameType === null) return;
+      block(event, copyFor(decision, gameType, Date.now()), decision);
+    }
+
     function onClickCapture(event: MouseEvent): void {
       const click = classifyClick(event.target);
 
       switch (click.kind) {
-        // Correspondence or unreadable: never blocked.
-        case 'lobbyOption': {
-          if (click.gameType === null) return;
-          const decision = blockedReason(click.gameType);
-          if (decision !== null) {
-            block(event, copyFor(decision, click.gameType, Date.now()), decision);
-          }
-          return;
-        }
+        // A lobby option names its own game type; a quick-start link carries it in the
+        // href. Either way it is the type about to be played.
+        case 'lobbyOption':
+        case 'quickPlay':
+          return blockIfSpent(event, click.gameType);
 
-        // Opening or closing the dropdown starts no game.
-        case 'timeSelector':
-          return;
-
-        // Pairs immediately from outside the lobby, so it needs the same guard.
-        case 'quickPlay': {
-          if (click.gameType === null) return;
-          const decision = blockedReason(click.gameType);
-          if (decision !== null) {
-            block(event, copyFor(decision, click.gameType, Date.now()), decision);
-          }
-          return;
-        }
-
-        case 'startGame': {
-          const selected = readSelectedGameType(document);
-          const decision = blockedReason(selected);
-          if (decision !== null && selected !== null) {
-            block(event, copyFor(decision, selected, Date.now()), decision);
-          }
-          return;
-        }
+        // "Start Game" plays whatever the lobby currently has selected.
+        case 'startGame':
+          return blockIfSpent(event, readSelectedGameType(document));
 
         // Blocked always and on purpose, quota or no quota.
-        case 'rematch': {
+        case 'rematch':
           if (blockRematch) block(event, REMATCH_COPY, 'rematch');
           return;
-        }
 
+        // Opening the dropdown starts no game, and neither does anything else.
+        case 'timeSelector':
         case 'other':
           return;
       }
@@ -147,14 +135,14 @@ export default defineContentScript({
     /** Greys out blocked options and hides rematch. The click interceptor is the real
      * enforcement; this only stops the UI from looking usable when it is not. */
     function paint(): void {
-      for (const option of document.querySelectorAll(SEL.timeSelectorOption)) {
-        const gameType = gameTypeOfOption(option);
-        option.toggleAttribute(BLOCKED_ATTR, gameType !== null && blockedReason(gameType) !== null);
-      }
-      for (const link of document.querySelectorAll(SEL.quickPlay)) {
-        const gameType = gameTypeFromQuickPlay(link.getAttribute('href'));
-        link.toggleAttribute(BLOCKED_ATTR, gameType !== null && blockedReason(gameType) !== null);
-      }
+      const grey = (selector: string, typeOf: (el: Element) => GameType | null) => {
+        for (const el of document.querySelectorAll(selector)) {
+          el.toggleAttribute(BLOCKED_ATTR, blockedReason(typeOf(el)) !== null);
+        }
+      };
+      grey(SEL.timeSelectorOption, gameTypeOfOption);
+      grey(SEL.quickPlay, (el) => gameTypeFromQuickPlay(el.getAttribute('href')));
+
       for (const button of findRematchButtons(document)) {
         button.toggleAttribute(HIDDEN_ATTR, blockRematch);
       }

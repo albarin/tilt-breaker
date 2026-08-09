@@ -149,8 +149,8 @@
     max-width: 26rem;
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
-    background: #262421;
-    color: #f2f0ed;
+    background: var(--bg);
+    color: var(--text);
     font-family:
       system-ui,
       -apple-system,
@@ -162,7 +162,7 @@
 
   .account {
     margin: 0 0 2.25rem;
-    color: #8b8681;
+    color: var(--muted);
     font-size: 1.1875rem;
   }
 
@@ -172,7 +172,7 @@
   }
 
   .account strong {
-    color: #f2f0ed;
+    color: var(--text);
     font-weight: 600;
   }
 
@@ -191,7 +191,7 @@
 
   .hint {
     margin: -0.4rem 0 0.8rem;
-    color: #8b8681;
+    color: var(--muted);
     font-size: 0.9375rem;
   }
 
@@ -219,9 +219,9 @@
 
   input[type='number'] {
     padding: 0.35rem 0.5rem;
-    border: 1px solid #4a4642;
+    border: 1px solid var(--border);
     border-radius: 0.3rem;
-    background: #1f1e1c;
+    background: var(--field);
     color: inherit;
     font: inherit;
     font-size: 1.0625rem;
@@ -230,7 +230,7 @@
   input[type='checkbox'] {
     width: 1.15rem;
     height: 1.15rem;
-    accent-color: #81b64c;
+    accent-color: var(--green);
   }
 
   .toast {
@@ -243,7 +243,7 @@
     margin: 0;
     padding: 0.45rem 1rem;
     border-radius: 0.3rem;
-    background: #81b64c;
+    background: var(--green);
     color: #fff;
     font-size: 0.9375rem;
     font-weight: 600;
