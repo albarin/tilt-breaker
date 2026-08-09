@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { COOLDOWN_MINUTES, GAME_TYPES, type Settings, type GameType } from '../../core/types';
-  import { detectedUsernameItem, getSettings, setSettings } from '../../state/storage';
+  import { avatarItem, detectedUsernameItem, getSettings, setSettings } from '../../state/storage';
   import { NAMES } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
 
   let settings = $state<Settings | null>(null);
   let detectedAccount = $state<string | null>(null);
+  let avatar = $state<string | null>(null);
   let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
 
   /**
@@ -20,10 +21,15 @@
     void (async () => {
       settings = await getSettings();
       detectedAccount = await detectedUsernameItem.getValue();
+      avatar = await avatarItem.getValue();
     })();
-    // Same as the popup: the account can land a few seconds after a chess.com tab reports
-    // in, and this page should fill itself in rather than need a reload.
-    return detectedUsernameItem.watch((value) => (detectedAccount = value));
+    // Same as the popup: both land a few seconds after a chess.com tab reports in, and
+    // this page should fill itself in rather than need a reload.
+    const unwatch = [
+      detectedUsernameItem.watch((value) => (detectedAccount = value)),
+      avatarItem.watch((value) => (avatar = value)),
+    ];
+    return () => unwatch.forEach((stop) => stop());
   });
 
   async function save(patch: Partial<Settings>) {
@@ -83,6 +89,10 @@
 <main>
   <p class="account">
     {#if detectedAccount !== null}
+      <!-- Decoration: if it fails to load it just goes away, the name stays. -->
+      {#if avatar !== null}
+        <img src={avatar} alt="" onerror={() => (avatar = null)} />
+      {/if}
       Account: <strong>{detectedAccount}</strong>
     {:else}
       No account yet. Open <a href="https://www.chess.com/" target="_blank" rel="noreferrer"
@@ -190,6 +200,20 @@
     margin: 0 0 2.25rem;
     color: var(--muted);
     font-size: 1.1875rem;
+  }
+
+  /*
+   * Inline rather than a flex row. The no-account branch is a full sentence with a link
+   * in it, and a flex container would break the loose text into separate items with gaps
+   * between them.
+   */
+  .account img {
+    width: 1.6rem;
+    height: 1.6rem;
+    margin-right: 0.45rem;
+    border-radius: 0.3rem;
+    object-fit: cover;
+    vertical-align: -0.4rem;
   }
 
   .account a {
