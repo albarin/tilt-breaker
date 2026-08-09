@@ -74,13 +74,32 @@ export const OVERLAY_CSS = `
   }
   h1 { margin: 0 0 0.55em; font-size: 2.25em; line-height: 1.15; font-weight: 700; }
   p { margin: 0; font-size: 1.375em; line-height: 1.45; color: #d0cdc8; }
+  /*
+   * chess.com's own primary button, measured off the live "Start Game": a vertical
+   * gradient with a bright inset line on top and a dark one underneath, which is what
+   * makes it read as raised rather than flat.
+   */
   button {
-    margin-top: 2.25em; padding: 0.85em 2.25em;
-    border: 0; border-radius: 0.45em; cursor: pointer;
-    background: #81b64c; color: #fff;
-    font-family: inherit; font-size: 1.25em; font-weight: 650;
+    margin-top: 2.25em; padding: 0.75em 2.25em;
+    border: 0; border-radius: 10px; cursor: pointer;
+    background: linear-gradient(#81b64c 0%, #5d9948 100%);
+    box-shadow:
+      inset 0 1px 0 0 rgba(178, 224, 104, 0.4),
+      inset 0 -1px 0 0 #45753c,
+      inset 0 2px 4px 0 rgba(178, 224, 104, 0.5),
+      inset 0 -2px 4px 0 rgba(69, 117, 60, 0.5),
+      0 1px 2px 0 rgba(0, 0, 0, 0.14),
+      0 2px 4px 0 rgba(0, 0, 0, 0.1);
+    color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+    font-family: inherit; font-size: 1.25em; font-weight: 800;
   }
-  button:hover { background: #8fc456; }
+  button:hover { background: linear-gradient(#8cc056 0%, #67a350 100%); }
+  button:active {
+    background: linear-gradient(#75a544 0%, #548a40 100%);
+    box-shadow:
+      inset 0 1px 3px 0 rgba(0, 0, 0, 0.3),
+      inset 0 -1px 0 0 rgba(178, 224, 104, 0.25);
+  }
 `;
 
 export type Overlay = { show: (copy: OverlayCopy) => void; hide: () => void };

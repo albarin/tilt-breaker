@@ -186,18 +186,38 @@
   button {
     width: 100%;
     margin-top: 1.1rem;
-    padding: 0.6rem 1rem;
-    border: 0;
-    border-radius: 0.4rem;
-    background: #81b64c;
-    color: #fff;
+    padding: 0.7rem 1rem;
     font: inherit;
     font-size: 1rem;
-    font-weight: 600;
+    /*
+     * chess.com's own primary button, measured off the live "Start Game": a vertical
+     * gradient, a bright inset line on top and a dark one underneath. That inset pair is
+     * what makes it read as raised rather than flat.
+     */
+    border: 0;
+    border-radius: 10px;
+    background: linear-gradient(#81b64c 0%, #5d9948 100%);
+    box-shadow:
+      inset 0 1px 0 0 rgba(178, 224, 104, 0.4),
+      inset 0 -1px 0 0 #45753c,
+      inset 0 2px 4px 0 rgba(178, 224, 104, 0.5),
+      inset 0 -2px 4px 0 rgba(69, 117, 60, 0.5),
+      0 1px 2px 0 rgba(0, 0, 0, 0.14),
+      0 2px 4px 0 rgba(0, 0, 0, 0.1);
+    color: #fff;
+    font-weight: 800;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
     cursor: pointer;
   }
 
   button:hover {
-    background: #8fc456;
+    background: linear-gradient(#8cc056 0%, #67a350 100%);
+  }
+
+  button:active {
+    background: linear-gradient(#75a544 0%, #548a40 100%);
+    box-shadow:
+      inset 0 1px 3px 0 rgba(0, 0, 0, 0.3),
+      inset 0 -1px 0 0 rgba(178, 224, 104, 0.25);
   }
 </style>
