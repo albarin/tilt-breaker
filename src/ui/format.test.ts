@@ -16,9 +16,9 @@ function row(overrides: Partial<GameTypeSummary>): GameTypeSummary {
 }
 
 describe('formatTime', () => {
-  it('formats as 24-hour hh:mm', () => {
-    expect(formatTime(at('2026-08-09T04:00:00'))).toBe('04:00');
-    expect(formatTime(at('2026-08-08T21:05:00'))).toBe('21:05');
+  it('formats as 24-hour hh:mm with an h suffix', () => {
+    expect(formatTime(at('2026-08-09T04:00:00'))).toBe('04:00h');
+    expect(formatTime(at('2026-08-08T21:05:00'))).toBe('21:05h');
   });
 });
 
@@ -49,7 +49,7 @@ describe('blockReason', () => {
       losses: 3,
       until: at('2026-08-08T21:30:00'),
     } as const;
-    expect(blockReason(row({ decision }))).toBe('resting until 21:30');
+    expect(blockReason(row({ decision }))).toBe('resting until 21:30h');
   });
 });
 

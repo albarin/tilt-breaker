@@ -29,7 +29,7 @@ describe('copyFor', () => {
     const until = at('2026-08-08T12:45:00');
     const copy = copyFor({ allow: false, reason: 'tilt', losses: 3, until }, 'blitz', NOON)!;
     expect(copy.title).toContain('3 losses');
-    expect(copy.body).toContain('12:45');
+    expect(copy.body).toContain('12:45h');
     expect(copy.body).toContain('45 min');
   });
 

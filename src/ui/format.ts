@@ -17,8 +17,9 @@ export const COLORS: Record<GameType, string> = {
 
 const hhmm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
 
+/** Every time shown anywhere goes through here, so the `h` suffix is set in one place. */
 export function formatTime(ms: number): string {
-  return hhmm.format(ms);
+  return `${hhmm.format(ms)}h`;
 }
 
 /** Why that game type is blocked, or `null` if it can be played. */
