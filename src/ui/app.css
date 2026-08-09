@@ -24,6 +24,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+ * Both, not just the body. A background on the body only reaches the canvas by
+ * propagation, and in the popup window that left a pale edge around the content.
+ */
+html,
 body {
   margin: 0;
   background: var(--bg);

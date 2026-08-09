@@ -6,6 +6,7 @@
   import Icon from '../../ui/Icon.svelte';
 
   let view = $state<View | null>(null);
+  let account = $state<string | null>(null);
 
   /**
    * Only game types that have a quota are shown.
@@ -25,16 +26,23 @@
      * Only that key: reacting to any storage change would loop, since `loadView` writes
      * the day snapshot itself.
      */
-    return detectedUsernameItem.watch(() => void refresh());
+    return detectedUsernameItem.watch((value) => {
+      account = value;
+      void refresh();
+    });
   });
 
   async function refresh() {
+    account = await detectedUsernameItem.getValue();
     view = await loadView();
   }
 </script>
 
 <main>
-  <h1>Tilt Breaker</h1>
+  <header>
+    <h1>Tilt Breaker</h1>
+    {#if account !== null}<span class="account">{account}</span>{/if}
+  </header>
 
   {#if view === null}
     <p class="muted">Checking…</p>
@@ -103,10 +111,26 @@
       sans-serif;
   }
 
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.1rem;
+  }
+
   h1 {
-    margin: 0 0 1.1rem;
+    margin: 0;
     font-size: 1.1875rem;
     font-weight: 650;
+  }
+
+  .account {
+    color: var(--muted);
+    font-size: 0.9375rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   ul {
