@@ -6,7 +6,7 @@ Copy for the developer dashboard. Kept here so it changes with the code.
 
 Comes from the manifest (`wxt.config.ts`), 132-character limit:
 
-> Daily game limits for chess.com, so extra blitz stops eating your rapid. Not affiliated with Chess.com.
+> Stop the one-more-game spiral on chess.com: daily caps per game type, a cooldown between games, no rematch.
 
 ## Detailed description
 
@@ -51,12 +51,12 @@ Not affiliated with Chess.com.
 
 The dashboard asks for one per permission.
 
-| Permission | Justification |
-| --- | --- |
-| `storage` | Stores your limits and the day's game count locally. Nothing leaves the browser. |
-| `alarms` | Refreshes the day's count every 30 minutes so the popup is current when opened. |
-| `*://*.chess.com/*` | The content script reads which button you clicked in order to block starting a game over your limit, and reads the signed-in username from the page so you do not have to type it. |
-| `https://api.chess.com/*` | Reads your public game archive to count today's games and their results. |
+| Permission                | Justification                                                                                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                 | Stores your limits and the day's game count locally. Nothing leaves the browser.                                                                                                   |
+| `alarms`                  | Refreshes the day's count every 30 minutes so the popup is current when opened.                                                                                                    |
+| `*://*.chess.com/*`       | The content script reads which button you clicked in order to block starting a game over your limit, and reads the signed-in username from the page so you do not have to type it. |
+| `https://api.chess.com/*` | Reads your public game archive to count today's games and their results.                                                                                                           |
 
 **Single purpose:** limit how many chess.com games the user plays per day.
 
