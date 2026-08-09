@@ -27,10 +27,19 @@
      * Only that key: reacting to any storage change would loop, since `loadView` writes
      * the day snapshot itself.
      */
-    return detectedUsernameItem.watch((value) => {
-      account = value;
-      void refresh();
-    });
+    /*
+     * Both keys, not just the account. The avatar lands a moment after it, fetched by the
+     * background, and an already-open popup would otherwise sit there blank until closed
+     * and reopened.
+     */
+    const unwatch = [
+      detectedUsernameItem.watch((value) => {
+        account = value;
+        void refresh();
+      }),
+      avatarItem.watch((value) => (avatar = value)),
+    ];
+    return () => unwatch.forEach((stop) => stop());
   });
 
   async function refresh() {

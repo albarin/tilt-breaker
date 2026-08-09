@@ -2,7 +2,12 @@ import { evaluate, type Decision } from '../core/policy';
 import { GAME_TYPES, type GameType } from '../core/types';
 import type { Message, Status } from '../messaging';
 import { fetchAvatar } from '../api/chesscom-api';
-import { avatarItem, getSettings, rememberDetectedUsername } from '../state/storage';
+import {
+  avatarItem,
+  detectedUsernameItem,
+  getSettings,
+  rememberDetectedUsername,
+} from '../state/storage';
 import { syncDay } from '../state/sync';
 
 const REFRESH_ALARM = 'refresh';
@@ -38,6 +43,11 @@ export default defineBackground(() => {
 async function refresh(): Promise<void> {
   const outcome = await syncDay({ now: Date.now(), force: true });
   if (!outcome.ok) console.info('[tilt-breaker] refresh failed:', outcome.reason, outcome.detail);
+
+  // Picks up an avatar that a failed fetch left missing. Without this, one bad request
+  // would leave it blank until the account changed.
+  const username = await detectedUsernameItem.getValue();
+  if (username !== null) await refreshAvatar(username, false);
 }
 
 /** Fetched once per account. Cosmetic, so it never blocks answering the content script. */
