@@ -5,6 +5,7 @@ import {
   SEL,
   classifyClick,
   findRematchButtons,
+  gameTypeFromQuickPlay,
   readOwnUsername,
   readSelectedGameType,
   gameTypeOfOption,
@@ -113,6 +114,16 @@ export default defineContentScript({
         case 'timeSelector':
           return;
 
+        // Pairs immediately from outside the lobby, so it needs the same guard.
+        case 'quickPlay': {
+          if (click.gameType === null) return;
+          const decision = blockedReason(click.gameType);
+          if (decision !== null) {
+            block(event, copyFor(decision, click.gameType, Date.now()), decision);
+          }
+          return;
+        }
+
         case 'startGame': {
           const selected = readSelectedGameType(document);
           const decision = blockedReason(selected);
@@ -139,6 +150,10 @@ export default defineContentScript({
       for (const option of document.querySelectorAll(SEL.timeSelectorOption)) {
         const gameType = gameTypeOfOption(option);
         option.toggleAttribute(BLOCKED_ATTR, gameType !== null && blockedReason(gameType) !== null);
+      }
+      for (const link of document.querySelectorAll(SEL.quickPlay)) {
+        const gameType = gameTypeFromQuickPlay(link.getAttribute('href'));
+        link.toggleAttribute(BLOCKED_ATTR, gameType !== null && blockedReason(gameType) !== null);
       }
       for (const button of findRematchButtons(document)) {
         button.toggleAttribute(HIDDEN_ATTR, blockRematch);

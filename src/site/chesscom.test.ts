@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   classifyClick,
   findRematchButtons,
+  gameTypeFromQuickPlay,
   readOwnUsername,
   readSelectedGameType,
   gameTypeOfOption,
@@ -213,5 +214,53 @@ describe('readOwnUsername', () => {
   it('decodes escaped names', () => {
     render(NAV('a%20b'));
     expect(readOwnUsername(document)).toBe('a b');
+  });
+});
+
+describe('quick-start links', () => {
+  /**
+   * The "Play 3 min" button on the home page pairs you straight away, skipping the lobby
+   * entirely — so none of the lobby guards would ever see it.
+   *
+   * Markup and query string copied from the live home page.
+   */
+  const QUICK = `
+    <div class="play-online-quick-links-component">
+      <div class="play-online-quick-links-buttons">
+        <a id="quick" href="/play/online/new?action=createLiveChallenge&rated=rated&base=180&timeIncrement=0">Play 3 min</a>
+        <a id="lobby" href="/play/online">Play Online</a>
+        <a id="bots" href="/play/computer">Play Bots</a>
+        <a id="friend" href="/play/online/friend">Play a Friend</a>
+      </div>
+    </div>`;
+
+  it('reads the game type out of the query string, in seconds', () => {
+    expect(gameTypeFromQuickPlay('/play/online/new?base=60&timeIncrement=0')).toBe('bullet');
+    expect(gameTypeFromQuickPlay('/play/online/new?base=180&timeIncrement=0')).toBe('blitz');
+    expect(gameTypeFromQuickPlay('/play/online/new?base=600&timeIncrement=0')).toBe('rapid');
+  });
+
+  it('counts the increment, like everywhere else', () => {
+    // 2|2 → 120 + 40×2 = 200s, which is blitz rather than bullet.
+    expect(gameTypeFromQuickPlay('/play/online/new?base=120&timeIncrement=2')).toBe('blitz');
+  });
+
+  it('returns null without a usable time control', () => {
+    expect(gameTypeFromQuickPlay('/play/online/new')).toBeNull();
+    expect(gameTypeFromQuickPlay('/play/online/new?rated=rated')).toBeNull();
+    expect(gameTypeFromQuickPlay(null)).toBeNull();
+  });
+
+  it('classifies the quick-start link', () => {
+    render(QUICK);
+    expect(classifyClick(el('quick'))).toEqual({ kind: 'quickPlay', gameType: 'blitz' });
+  });
+
+  /** The lobby link only opens the page we already guard, and bots are not counted. */
+  it('leaves the neighbouring links alone', () => {
+    render(QUICK);
+    for (const id of ['lobby', 'bots', 'friend']) {
+      expect(classifyClick(el(id)), id).toEqual({ kind: 'other' });
+    }
   });
 });

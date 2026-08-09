@@ -13,7 +13,7 @@
  * `cc-icon-glyph_75e61c9`. Never select on a hashed `cc-*`.
  */
 
-import { gameTypeFromLabel } from '../core/gametype';
+import { classify, gameTypeFromLabel } from '../core/gametype';
 import type { GameType } from '../core/types';
 
 export const SEL = {
@@ -34,6 +34,15 @@ export const SEL = {
    * container does, and it is stable.
    */
   startGame: '.new-game-primary',
+  /**
+   * Quick-start links, which pair you straight away without going through the lobby: the
+   * "Play 3 min" button on the home page, and anywhere else chess.com puts one.
+   *
+   * Matched on the href rather than on where it sits, so every copy of it is covered.
+   * "Play a Friend" (/play/online/friend) does not match, and neither does the plain
+   * "Play Online" link, which only opens the lobby we already guard.
+   */
+  quickPlay: 'a[href*="/play/online/new"]',
   /** The game-over modal, buttons included. */
   gameOverShell: '[class*="game-over-modal-shell-container"]',
   /**
@@ -63,6 +72,23 @@ function gameTypeFromGlyph(glyph: string | null | undefined): GameType | null {
     default:
       return null;
   }
+}
+
+/**
+ * The game type of a quick-start link, read from its query string.
+ *
+ * chess.com puts the time control right in the URL — `base=180&timeIncrement=0` — in
+ * **seconds**, which is exactly what `classify` takes. Far steadier than parsing the
+ * "Play 3 min" label.
+ */
+export function gameTypeFromQuickPlay(href: string | null | undefined): GameType | null {
+  const query = href?.split('?')[1];
+  if (query === undefined) return null;
+  const params = new URLSearchParams(query);
+  const base = Number(params.get('base'));
+  if (!Number.isFinite(base) || base <= 0) return null;
+  const increment = Number(params.get('timeIncrement'));
+  return classify({ base, increment: Number.isFinite(increment) ? increment : 0 });
 }
 
 /** The game type currently selected in the lobby. */
@@ -100,6 +126,8 @@ export type ClickTarget =
   | { kind: 'timeSelector' }
   /** "Start Game": applies to whichever game type is selected. */
   | { kind: 'startGame' }
+  /** A quick-start link that pairs immediately, skipping the lobby. */
+  | { kind: 'quickPlay'; gameType: GameType | null }
   /** "Rematch" or "New N min": chaining another game without leaving the modal. */
   | { kind: 'rematch' }
   | { kind: 'other' };
@@ -122,6 +150,11 @@ export function classifyClick(target: EventTarget | null): ClickTarget {
 
   if (target.closest(SEL.timeSelector) !== null) return { kind: 'timeSelector' };
   if (target.closest(SEL.startGame) !== null) return { kind: 'startGame' };
+
+  const quick = target.closest(SEL.quickPlay);
+  if (quick !== null) {
+    return { kind: 'quickPlay', gameType: gameTypeFromQuickPlay(quick.getAttribute('href')) };
+  }
 
   if (
     target.closest(SEL.gameOverShell) !== null &&
