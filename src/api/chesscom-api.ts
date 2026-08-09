@@ -1,0 +1,115 @@
+import type { ApiGame } from '../core/games';
+
+/**
+ * Client for chess.com's public monthly archive.
+ *
+ * `https://api.chess.com/pub/player/{username}/games/{YYYY}/{MM}`
+ *
+ * No key, no session: it is public data. This is where the extension's counts come from,
+ * so it knows the real game type and result instead of guessing from the page.
+ *
+ * Measured against the live server: it answers `cache-control: public, max-age=5` and a
+ * game shows up in the archive seconds after it ends. The 12-hour refresh the docs
+ * mention belongs to other endpoints, not this one.
+ *
+ * The archive is large (~1 MB mid-month), so requests carry `If-Modified-Since`: when you
+ * have not played since last time the server replies 304 with no body.
+ */
+
+export type Month = { year: number; month: number };
+export type Fetcher = typeof fetch;
+
+/** Cache key for a month: `'2026-08'`. */
+export function monthKey({ year, month }: Month): string {
+  return `${year}-${month.toString().padStart(2, '0')}`;
+}
+
+/**
+ * The months needed to cover a time window.
+ *
+ * Archives are keyed by **UTC** month while our day is local, so a day can span two of
+ * them and need two archives.
+ */
+export function monthsCovering(startMs: number, endMs: number): Month[] {
+  const months: Month[] = [];
+  const seen = new Set<string>();
+  for (const ms of [startMs, endMs]) {
+    const d = new Date(ms);
+    const month = { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
+    if (seen.has(monthKey(month))) continue;
+    seen.add(monthKey(month));
+    months.push(month);
+  }
+  return months;
+}
+
+export function archiveUrl(username: string, month: Month): string {
+  const user = encodeURIComponent(username.toLowerCase());
+  return `https://api.chess.com/pub/player/${user}/games/${monthKey(month).replace('-', '/')}`;
+}
+
+/** `Last-Modified` stamps per month, so we only ask for what changed. */
+export type LastModified = Record<string, string>;
+
+export type ArchiveResult = {
+  games: ApiGame[];
+  /** `true` when **every** month answered 304: the caller can keep its cache. */
+  unchanged: boolean;
+  lastModified: LastModified;
+};
+
+/**
+ * Downloads one monthly archive.
+ *
+ * A 404 means "you did not play that month", which is not an error. Anything else throws:
+ * we never invent an empty list, because an empty list would look like "no games today"
+ * and would lift the block.
+ */
+async function fetchMonth(
+  username: string,
+  month: Month,
+  previous: string | undefined,
+  fetchImpl: Fetcher,
+): Promise<{ games: ApiGame[] | null; lastModified?: string }> {
+  const response = await fetchImpl(archiveUrl(username, month), {
+    headers: previous === undefined ? {} : { 'If-Modified-Since': previous },
+  });
+
+  if (response.status === 304) return { games: null, lastModified: previous };
+  if (response.status === 404) return { games: [] };
+  if (!response.ok) throw new Error(`chess.com API responded ${response.status}`);
+
+  const body = (await response.json()) as { games?: ApiGame[] };
+  const lastModified = response.headers.get('last-modified') ?? undefined;
+  return { games: body.games ?? [], ...(lastModified === undefined ? {} : { lastModified }) };
+}
+
+/** Every game from the months covering the given window. */
+export async function fetchGamesCovering(input: {
+  username: string;
+  startMs: number;
+  endMs: number;
+  lastModified?: LastModified;
+  fetchImpl?: Fetcher;
+}): Promise<ArchiveResult> {
+  const { username, startMs, endMs, lastModified = {}, fetchImpl = fetch } = input;
+  const months = monthsCovering(startMs, endMs);
+
+  const results = await Promise.all(
+    months.map((month) => fetchMonth(username, month, lastModified[monthKey(month)], fetchImpl)),
+  );
+
+  const stamps: LastModified = {};
+  const games: ApiGame[] = [];
+  let unchanged = true;
+
+  results.forEach((result, i) => {
+    const key = monthKey(months[i]!);
+    if (result.lastModified !== undefined) stamps[key] = result.lastModified;
+    if (result.games === null) return; // 304: nothing new this month
+    unchanged = false;
+    games.push(...result.games);
+  });
+
+  return { games, unchanged, lastModified: stamps };
+}
