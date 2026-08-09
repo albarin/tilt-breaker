@@ -45,7 +45,8 @@
     -->
     {#if view.problem === 'no-account'}
       <p class="warning">
-        No account yet. Open chess.com while signed in — it can take a minute, come back later.
+        No account yet. Open chess.com while signed in. It can take a while, so come back in a
+        minute.
       </p>
     {:else}
       {#if view.problem === 'network-error'}
