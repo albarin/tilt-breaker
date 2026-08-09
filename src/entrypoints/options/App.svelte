@@ -56,7 +56,9 @@
     {#if detectedAccount !== null}
       Account: <strong>{detectedAccount}</strong>
     {:else}
-      No account yet. Open chess.com while signed in. It can take a while, so come back in a minute.
+      No account yet. Open <a href="https://www.chess.com/" target="_blank" rel="noreferrer"
+        >chess.com</a
+      > while signed in. It can take a while, come back in a minute.
     {/if}
   </p>
 
@@ -162,6 +164,11 @@
     margin: 0 0 2.25rem;
     color: #8b8681;
     font-size: 1.1875rem;
+  }
+
+  .account a {
+    color: #e8e5e1;
+    font-weight: 600;
   }
 
   .account strong {

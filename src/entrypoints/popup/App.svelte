@@ -45,8 +45,9 @@
     -->
     {#if view.problem === 'no-account'}
       <p class="warning">
-        No account yet. Open chess.com while signed in. It can take a while, so come back in a
-        minute.
+        No account yet. Open <a href="https://www.chess.com/" target="_blank" rel="noreferrer"
+          >chess.com</a
+        > while signed in. It can take a while, so come back in a minute.
       </p>
     {:else}
       {#if view.problem === 'network-error'}
@@ -188,6 +189,11 @@
     background: #33302c;
     color: #e0c9a0;
     font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .warning a {
+    color: inherit;
     font-weight: 600;
   }
 
