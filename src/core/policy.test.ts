@@ -151,11 +151,12 @@ describe('evaluate', () => {
 describe('summarize', () => {
   it('returns one row per game type', () => {
     const state = stateWith(streak('blitz', ['win', 'loss']));
-    const rows = summarize(state, settingsWith(), NOON);
+    const settings = settingsWith({ limits: { bullet: 8, blitz: 6, rapid: 3 } });
+    const rows = summarize(state, settings, NOON);
     expect(rows.map((r) => r.gameType)).toEqual(['bullet', 'blitz', 'rapid']);
     expect(rows.find((r) => r.gameType === 'blitz')).toMatchObject({
       used: 2,
-      limit: 5,
+      limit: 6,
       lossStreak: 1,
     });
   });

@@ -60,7 +60,7 @@ export type DayState = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  limits: { bullet: 3, blitz: 5, rapid: null },
+  limits: { bullet: 8, blitz: 6, rapid: 3 },
   tilt: { losses: 3 },
   gapMinutes: 15,
   blockRematch: true,
