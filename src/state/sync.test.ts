@@ -2,7 +2,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiGame } from '../core/games';
 import { countOf } from '../core/policy';
-import { rememberDetectedUsername } from './storage';
+import { rememberDetectedUsername, rememberLastGameEnd } from './storage';
 import { syncDay } from './sync';
 
 const ME = 'crabinloan';
@@ -156,5 +156,33 @@ describe('last game end', () => {
     await sync(archive(apiGame('1', { end_time: endedAt('2026-08-08T11:50:00') })), true);
     const outcome = await sync(vi.fn().mockResolvedValue(response({}, 500)), true);
     expect(outcome.state.lastGameEndedAt).toBe(new Date('2026-08-08T11:50:00').getTime());
+  });
+});
+
+/**
+ * The crux of the rapid bug: the archive lags a few seconds behind a finished game, and
+ * during that window it still reports the *previous* one. After a long game that end is
+ * old enough for the gap to have expired.
+ */
+describe('a game reported before the archive knows', () => {
+  const endedAt = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+  const twentyMinutesAgo = apiGame('1', { end_time: endedAt('2026-08-08T11:40:00') });
+
+  it('starts the gap, and the stale archive cannot pull it back', async () => {
+    await sync(archive(twentyMinutesAgo), true);
+
+    // The content script sees the modal and reports the finish at once.
+    await rememberLastGameEnd(NOON.getTime());
+
+    // The next sync still gets an archive that has not caught up.
+    const outcome = await sync(archive(twentyMinutesAgo), true);
+    expect(outcome.state.lastGameEndedAt).toBe(NOON.getTime());
+  });
+
+  it('and the archive confirms it once it catches up', async () => {
+    await rememberLastGameEnd(NOON.getTime());
+    const published = apiGame('2', { end_time: endedAt('2026-08-08T12:00:00') });
+    const outcome = await sync(archive(twentyMinutesAgo, published), true);
+    expect(outcome.state.lastGameEndedAt).toBe(NOON.getTime());
   });
 });

@@ -178,7 +178,7 @@ the sources in `src`.
 ## Checks
 
 ```sh
-pnpm test          # 149 tests (vitest + happy-dom)
+pnpm test          # 151 tests (vitest + happy-dom)
 pnpm check         # types (svelte-check)
 pnpm format        # prettier, configured to match what the code already used
 pnpm format:check  # the same, read-only
