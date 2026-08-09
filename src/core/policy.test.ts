@@ -154,3 +154,95 @@ describe('summarize', () => {
     });
   });
 });
+
+describe('gap between games', () => {
+  const settings = settingsWith({
+    limits: { bullet: null, blitz: null, rapid: null },
+    gapMinutes: 15,
+  });
+  const withLastGame = (endedAt: number): DayState => ({ ...stateWith([]), lastGameEndedAt: endedAt });
+
+  it('blocks until the gap has passed', () => {
+    const state = withLastGame(NOON);
+    expect(evaluate({ state, settings, gameType: 'blitz', now: NOON + 5 * 60_000 })).toMatchObject({
+      allow: false,
+      reason: 'gap',
+      until: NOON + 15 * 60_000,
+    });
+  });
+
+  it('allows once it has', () => {
+    const state = withLastGame(NOON);
+    expect(evaluate({ state, settings, gameType: 'blitz', now: NOON + 16 * 60_000 }).allow).toBe(true);
+  });
+
+  /** Per-type would be walked around by alternating bullet and blitz. */
+  it('is global: a bullet game holds blitz back too', () => {
+    const state = withLastGame(NOON);
+    for (const gameType of ['bullet', 'blitz', 'rapid'] as const) {
+      expect(evaluate({ state, settings, gameType, now: NOON + 60_000 }).allow, gameType).toBe(false);
+    }
+  });
+
+  it('zero minutes switches it off', () => {
+    const state = withLastGame(NOON);
+    const off = settingsWith({ limits: { bullet: null, blitz: null, rapid: null }, gapMinutes: 0 });
+    expect(evaluate({ state, settings: off, gameType: 'blitz', now: NOON }).allow).toBe(true);
+  });
+
+  it('does nothing with no game on record', () => {
+    expect(evaluate({ state: stateWith([]), settings, gameType: 'blitz', now: NOON }).allow).toBe(true);
+  });
+
+  /**
+   * It survives the day rollover: `lastGameEndedAt` is kept apart from `games`, which
+   * reset at midnight. Finishing at 23:58 must still hold you back at 00:05.
+   */
+  it('holds across midnight, when today has no games yet', () => {
+    const lastNight = new Date('2026-08-07T23:58:00').getTime();
+    const justAfter = new Date('2026-08-08T00:05:00').getTime();
+    const state: DayState = { dayKey: DAY, games: {}, lastGameEndedAt: lastNight };
+    expect(evaluate({ state, settings, gameType: 'blitz', now: justAfter })).toMatchObject({
+      allow: false,
+      reason: 'gap',
+    });
+  });
+
+  // Otherwise you would be told 21:30, come back, and be told 21:34.
+  it('when the streak and the gap overlap it reports whichever ends later', () => {
+    const both = settingsWith({
+      limits: { bullet: null, blitz: null, rapid: null },
+      tilt: { losses: 3 },
+      gapMinutes: 15,
+    });
+    // Three losses ending an hour ago: the tilt cooldown is nearly over. A win a minute
+    // ago means the gap runs later.
+    const losses = streak('blitz', ['loss', 'loss', 'loss'], NOON - 59 * 60_000);
+    const state: DayState = { ...stateWith(losses), lastGameEndedAt: NOON - 60_000 };
+    const decision = evaluate({ state, settings: both, gameType: 'blitz', now: NOON });
+    expect(decision).toMatchObject({ allow: false, reason: 'gap' });
+  });
+
+  // The day being over is not a wait: telling you to hold on 15 minutes would be a lie.
+  it('a spent quota outranks the gap', () => {
+    const spent = settingsWith({ limits: { bullet: null, blitz: 1, rapid: null }, gapMinutes: 15 });
+    const state: DayState = {
+      ...stateWith(streak('blitz', ['win'])),
+      lastGameEndedAt: NOON,
+    };
+    expect(evaluate({ state, settings: spent, gameType: 'blitz', now: NOON })).toMatchObject({
+      allow: false,
+      reason: 'quota',
+    });
+  });
+
+  /**
+   * The gap blocks every type at once, so repeating it on all three rows would say the
+   * same thing three times. The popup shows it once instead.
+   */
+  it('does not leak into the popup rows', () => {
+    const state = withLastGame(NOON);
+    const rows = summarize(state, settings, NOON + 60_000);
+    expect(rows.every((r) => r.decision.allow)).toBe(true);
+  });
+});

@@ -33,10 +33,13 @@ export function copyFor(decision: Decision, gameType: GameType, now: number): Ov
     };
   }
 
-  return {
-    title: `${decision.losses} losses in a row`,
-    body: `Resting until ${formatTime(decision.until)}, ${minutesUntil(decision.until, now)} min from now.`,
-  };
+  const wait = `${formatTime(decision.until)}, ${minutesUntil(decision.until, now)} min from now.`;
+
+  if (decision.reason === 'tilt') {
+    return { title: `${decision.losses} losses in a row`, body: `Resting until ${wait}` };
+  }
+
+  return { title: 'One at a time', body: `You just played. Next game at ${wait}` };
 }
 
 /** Rematch is blocked always, quota or no quota, so its copy mentions no limit. */

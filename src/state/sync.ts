@@ -1,10 +1,12 @@
 import { fetchGamesCovering, type Fetcher } from '../api/chesscom-api';
 import { dayEndMs, dayKeyOf, dayStartMs } from '../core/day';
-import { gamesForDay } from '../core/games';
+import { gamesForDay, lastGameEnd } from '../core/games';
 import { DAY_RESET_HOUR, type DayState } from '../core/types';
 import {
   detectedUsernameItem,
   getSnapshot,
+  lastGameEndItem,
+  rememberLastGameEnd,
   serialize,
   setSnapshot,
   type DaySnapshot,
@@ -37,12 +39,19 @@ export async function syncDay(input: {
   const { now, force = false, fetchImpl } = input;
   const dayKey = dayKeyOf(now, DAY_RESET_HOUR);
   const stored = (await getSnapshot(now)) ?? { dayKey, games: {}, fetchedAt: 0, lastModified: {} };
-  const asState = (snapshot: DaySnapshot): DayState => ({ dayKey, games: snapshot.games });
+  const asState = (snapshot: DaySnapshot, lastEnd: number | null): DayState => ({
+    dayKey,
+    games: snapshot.games,
+    ...(lastEnd === null ? {} : { lastGameEndedAt: lastEnd }),
+  });
+  let lastEnd = await lastGameEndItem.getValue();
 
   const username = await detectedUsernameItem.getValue();
-  if (username === null) return { ok: false, reason: 'no-account', state: asState(stored) };
+  if (username === null) {
+    return { ok: false, reason: 'no-account', state: asState(stored, lastEnd) };
+  }
 
-  if (!force && now - stored.fetchedAt < TTL_MS) return { ok: true, state: asState(stored) };
+  if (!force && now - stored.fetchedAt < TTL_MS) return { ok: true, state: asState(stored, lastEnd) };
 
   const dayStart = dayStartMs(dayKey, DAY_RESET_HOUR);
   const dayEnd = dayEndMs(dayKey, DAY_RESET_HOUR);
@@ -55,6 +64,9 @@ export async function syncDay(input: {
       lastModified: stored.lastModified,
       ...(fetchImpl === undefined ? {} : { fetchImpl }),
     });
+
+    // Taken from the whole archive, not the day slice: the gap has to survive midnight.
+    if (!archive.unchanged) lastEnd = await rememberLastGameEnd(lastGameEnd(archive.games, username));
 
     const snapshot = await serialize(async () => {
       const next: DaySnapshot = {
@@ -71,8 +83,13 @@ export async function syncDay(input: {
       return next;
     });
 
-    return { ok: true, state: asState(snapshot) };
+    return { ok: true, state: asState(snapshot, lastEnd) };
   } catch (error) {
-    return { ok: false, reason: 'network-error', state: asState(stored), detail: String(error) };
+    return {
+      ok: false,
+      reason: 'network-error',
+      state: asState(stored, lastEnd),
+      detail: String(error),
+    };
   }
 }

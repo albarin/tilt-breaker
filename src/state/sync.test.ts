@@ -116,3 +116,39 @@ describe('syncDay', () => {
     expect(countOf(outcome.state, 'bullet')).toBe(0);
   });
 });
+
+describe('last game end', () => {
+  const endedAt = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+
+  it('is reported so the gap between games can be applied', async () => {
+    const outcome = await sync(archive(apiGame('1', { end_time: endedAt('2026-08-08T11:50:00') })));
+    expect(outcome.state.lastGameEndedAt).toBe(new Date('2026-08-08T11:50:00').getTime());
+  });
+
+  /**
+   * Taken from the whole archive rather than the day slice, and persisted apart from the
+   * snapshot, so a game that ended at 23:58 still holds you back at 00:05.
+   */
+  it('survives the day rollover', async () => {
+    await sync(archive(apiGame('1', { end_time: endedAt('2026-08-08T23:58:00') })), true);
+
+    const nextDay = new Date('2026-08-09T00:05:00').getTime();
+    vi.setSystemTime(nextDay);
+    const outcome = await syncDay({ now: nextDay, fetchImpl: archive(), force: true });
+
+    expect(countOf(outcome.state, 'bullet')).toBe(0); // the day did reset
+    expect(outcome.state.lastGameEndedAt).toBe(new Date('2026-08-08T23:58:00').getTime());
+  });
+
+  it('never goes backwards', async () => {
+    await sync(archive(apiGame('1', { end_time: endedAt('2026-08-08T11:50:00') })), true);
+    const outcome = await sync(archive(apiGame('2', { end_time: endedAt('2026-08-08T09:00:00') })), true);
+    expect(outcome.state.lastGameEndedAt).toBe(new Date('2026-08-08T11:50:00').getTime());
+  });
+
+  it('is kept when the API cannot be reached', async () => {
+    await sync(archive(apiGame('1', { end_time: endedAt('2026-08-08T11:50:00') })), true);
+    const outcome = await sync(vi.fn().mockResolvedValue(response({}, 500)), true);
+    expect(outcome.state.lastGameEndedAt).toBe(new Date('2026-08-08T11:50:00').getTime());
+  });
+});

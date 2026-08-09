@@ -26,6 +26,7 @@ export function blockReason(row: GameTypeSummary): string | null {
   const { decision, limit } = row;
   if (decision.allow) return null;
   if (decision.reason === 'tilt') return `resting until ${formatTime(decision.until)}`;
+  if (decision.reason === 'gap') return `next game at ${formatTime(decision.until)}`;
   // A quota of 0 was never spent: it is switched off from the start.
   return limit === 0 ? 'off for today' : 'done for today';
 }

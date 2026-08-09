@@ -23,6 +23,16 @@ const snapshotItem = storage.defineItem<DaySnapshot | null>('local:daySnapshot',
 });
 
 /**
+ * End of the most recent game we have ever seen, across days.
+ *
+ * Stored apart from the day snapshot, which resets at midnight: the gap between games has
+ * to hold at 00:05 for a game that ended at 23:58.
+ */
+export const lastGameEndItem = storage.defineItem<number | null>('local:lastGameEnd', {
+  fallback: null,
+});
+
+/**
  * The account read from the chess.com session. Persisted so the popup and the refresh
  * alarm keep working with no chess.com tab open.
  */
@@ -74,4 +84,12 @@ export async function rememberDetectedUsername(username: string): Promise<boolea
   if (previous === username) return false;
   await detectedUsernameItem.setValue(username);
   return true;
+}
+
+/** Records a game end, never going backwards. */
+export async function rememberLastGameEnd(endedAt: number | null): Promise<number | null> {
+  const previous = await lastGameEndItem.getValue();
+  if (endedAt === null || (previous !== null && previous >= endedAt)) return previous;
+  await lastGameEndItem.setValue(endedAt);
+  return endedAt;
 }

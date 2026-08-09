@@ -84,3 +84,19 @@ export function gamesForDay(input: {
   }
   return games;
 }
+
+/**
+ * When your most recent game in the archive ended, ignoring the day window.
+ *
+ * The gap between games has to hold across midnight, so this deliberately does not filter
+ * by day the way `gamesForDay` does.
+ */
+export function lastGameEnd(apiGames: ApiGame[], username: string): number | null {
+  let last: number | null = null;
+  for (const apiGame of apiGames) {
+    if (toRecord(apiGame, username) === null) continue;
+    const endedAt = apiGame.end_time * 1000;
+    if (last === null || endedAt > last) last = endedAt;
+  }
+  return last;
+}

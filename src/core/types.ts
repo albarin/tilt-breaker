@@ -30,6 +30,13 @@ export type Settings = {
   /** Consecutive losses in one game type that trigger the cooldown. */
   tilt: { losses: number };
   /**
+   * Minutes that must pass between games. `0` switches it off.
+   *
+   * Global rather than per game type on purpose: alternating bullet and blitz would walk
+   * straight around a per-type gap.
+   */
+  gapMinutes: number;
+  /**
    * Always block the rematch button, quota or no quota.
    *
    * Not a counting rule but an impulse one: the rematch button is what turns one game
@@ -43,10 +50,18 @@ export type DayState = {
   /** Local day key, already shifted by `DAY_RESET_HOUR`. */
   dayKey: string;
   games: Record<string, GameRecord>;
+  /**
+   * End of your most recent game of any type, even if it was yesterday.
+   *
+   * Kept apart from `games` because the gap has to survive the day rollover: finishing at
+   * 23:58 must still hold you back at 00:05, when today's games are empty.
+   */
+  lastGameEndedAt?: number;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
   limits: { bullet: 3, blitz: 5, rapid: null },
   tilt: { losses: 3 },
+  gapMinutes: 15,
   blockRematch: true,
 };

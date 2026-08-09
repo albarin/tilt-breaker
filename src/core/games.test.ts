@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gamesForDay, parseGameId, toRecord, type ApiGame } from './games';
+import { gamesForDay, lastGameEnd, parseGameId, toRecord, type ApiGame } from './games';
 
 const ME = 'crabinloan';
 const at = (iso: string) => new Date(iso).getTime();
@@ -100,5 +100,30 @@ describe('gamesForDay', () => {
     const first = apiGame('401', { end_time: DAY_START / 1000 });
     const last = apiGame('402', { end_time: DAY_END / 1000 });
     expect(Object.keys(build([first, last]))).toEqual(['401']);
+  });
+});
+
+describe('lastGameEnd', () => {
+  /** Deliberately unfiltered by day, so the gap between games survives midnight. */
+  it('takes the latest end regardless of the day window', () => {
+    const older = apiGame('1', { end_time: Math.floor(at('2026-08-07T23:00:00') / 1000) });
+    const newer = apiGame('2', { end_time: Math.floor(at('2026-08-08T02:00:00') / 1000) });
+    expect(lastGameEnd([older, newer], ME)).toBe(at('2026-08-08T02:00:00'));
+  });
+
+  it('ignores games that are not yours', () => {
+    const theirs = apiGame('1', {
+      white: { username: 'Uno', result: 'win' },
+      black: { username: 'Otro', result: 'resigned' },
+    });
+    expect(lastGameEnd([theirs], ME)).toBeNull();
+  });
+
+  it('ignores correspondence', () => {
+    expect(lastGameEnd([apiGame('1', { time_class: 'daily' })], ME)).toBeNull();
+  });
+
+  it('is null with nothing to look at', () => {
+    expect(lastGameEnd([], ME)).toBeNull();
   });
 });

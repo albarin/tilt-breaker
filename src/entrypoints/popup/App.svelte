@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { loadView, type View } from '../../ui/load';
-  import { COLORS, NAMES, blockReason, usedFraction } from '../../ui/format';
+  import { COLORS, NAMES, blockReason, formatTime, usedFraction } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
 
   let view = $state<View | null>(null);
@@ -32,6 +32,10 @@
       </p>
     {:else if view.problem === 'network-error'}
       <p class="warning">Could not reach chess.com. This is the last data known.</p>
+    {/if}
+
+    {#if view.gapUntil !== undefined}
+      <p class="gap">Next game at {formatTime(view.gapUntil)}</p>
     {/if}
 
     <ul>
@@ -148,6 +152,19 @@
 
   .note.streak {
     color: #e0a04a;
+  }
+
+  .gap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.9rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.4rem;
+    background: #33302c;
+    color: #e0c9a0;
+    font-size: 1rem;
+    font-weight: 600;
   }
 
   .warning {

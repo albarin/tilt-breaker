@@ -75,6 +75,21 @@
     </section>
 
     <section>
+      <h2>Between games</h2>
+      <p class="hint">Minutes you must wait after finishing a game,<br />whatever its type. Zero switches it off.</p>
+      <label>
+        <span>Minutes</span>
+        <input
+          type="number"
+          min="0"
+          step="5"
+          value={settings.gapMinutes}
+          onchange={(e) => save({ gapMinutes: Number(e.currentTarget.value) })}
+        />
+      </label>
+    </section>
+
+    <section>
       <h2>Losing streak</h2>
       <p class="hint">
         Losses in a row allowed in one game type<br />before it locks for {COOLDOWN_MINUTES} minutes.

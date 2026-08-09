@@ -22,6 +22,9 @@ into your rapid.
   rematch in the game-over modal.
 - **When in doubt it does not block.** If the API cannot be reached it uses the last thing
   it knew; it never assumes you have played nothing.
+- **A mandatory gap between games**, 15 minutes by default. Counted from your last game
+  of *any* type: a per-type gap would be walked around by alternating bullet and blitz.
+  It survives midnight, so finishing at 23:58 still holds you back at 00:05.
 - **Quotas reset at midnight.** Fixed, like the 60-minute rest after a losing streak:
   values that are not up for tuning.
 - **The blocking screen never names another game type**, and the popup only shows the
@@ -70,7 +73,7 @@ src/
   core/            pure logic, no DOM and no browser APIs — where the tests live
     day.ts         the local day, daylight saving included
     gametype.ts    base + 40×increment → bullet | blitz | rapid
-    policy.ts      quota and losing streak → allow or block
+    policy.ts      quota, losing streak and gap → allow or block
     games.ts       from API games to the day's count
   site/
     chesscom.ts    ALL knowledge of chess.com's DOM, isolated here
@@ -129,7 +132,7 @@ The site console carries the full trace under the `[chess-limit]` prefix.
 ## Checks
 
 ```sh
-pnpm test     # 102 tests (vitest + happy-dom)
+pnpm test     # 119 tests (vitest + happy-dom)
 pnpm check    # types (svelte-check)
 pnpm icons    # regenerates public/icon/*.png with no external dependencies
 ```
