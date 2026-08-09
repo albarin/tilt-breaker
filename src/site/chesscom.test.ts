@@ -162,7 +162,11 @@ describe('findRematchButtons', () => {
   // nothing.
   it('finds the ones to hide', () => {
     render(MODAL);
-    expect(findRematchButtons(document).map((b) => b.id).sort()).toEqual(['new', 'rematch']);
+    expect(
+      findRematchButtons(document)
+        .map((b) => b.id)
+        .sort(),
+    ).toEqual(['new', 'rematch']);
   });
 
   it('never returns the close button', () => {

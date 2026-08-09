@@ -87,7 +87,10 @@ describe('syncDay', () => {
     });
 
     it('a 304 does not empty the count', async () => {
-      await sync(vi.fn().mockResolvedValue(response({ games: [apiGame('1')] }, 200, 'stamp')), true);
+      await sync(
+        vi.fn().mockResolvedValue(response({ games: [apiGame('1')] }, 200, 'stamp')),
+        true,
+      );
       const outcome = await sync(vi.fn().mockResolvedValue(response(null, 304)), true);
       expect(countOf(outcome.state, 'bullet')).toBe(1);
     });
@@ -142,7 +145,10 @@ describe('last game end', () => {
 
   it('never goes backwards', async () => {
     await sync(archive(apiGame('1', { end_time: endedAt('2026-08-08T11:50:00') })), true);
-    const outcome = await sync(archive(apiGame('2', { end_time: endedAt('2026-08-08T09:00:00') })), true);
+    const outcome = await sync(
+      archive(apiGame('2', { end_time: endedAt('2026-08-08T09:00:00') })),
+      true,
+    );
     expect(outcome.state.lastGameEndedAt).toBe(new Date('2026-08-08T11:50:00').getTime());
   });
 

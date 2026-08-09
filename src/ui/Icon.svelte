@@ -15,7 +15,10 @@
   {#if gameType === 'bullet'}
     <!-- A straight tip on purpose: at 20px a rounded ogive is indistinguishable from a
          capsule, whereas the angular profile does read as a projectile. -->
-    <path fill="currentColor" d="M4.4 7h5.8l7.8 5-7.8 5H4.4A1.4 1.4 0 0 1 3 15.6V8.4A1.4 1.4 0 0 1 4.4 7z" />
+    <path
+      fill="currentColor"
+      d="M4.4 7h5.8l7.8 5-7.8 5H4.4A1.4 1.4 0 0 1 3 15.6V8.4A1.4 1.4 0 0 1 4.4 7z"
+    />
   {:else if gameType === 'blitz'}
     <path fill="currentColor" d="M13.4 2 5.6 13.3h4.9L9.4 22l8.6-11.7h-5.2z" />
   {:else}

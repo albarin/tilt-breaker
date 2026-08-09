@@ -45,8 +45,7 @@
     -->
     {#if view.problem === 'no-account'}
       <p class="warning">
-        No account yet. Open chess.com while signed in — it can take a minute, come back
-        later.
+        No account yet. Open chess.com while signed in — it can take a minute, come back later.
       </p>
     {:else}
       {#if view.problem === 'network-error'}
@@ -95,7 +94,11 @@
     padding: 1.25rem 1.25rem 1.4rem;
     background: #262421;
     color: #f2f0ed;
-    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
   }
 
   h1 {

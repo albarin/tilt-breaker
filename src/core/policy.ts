@@ -1,10 +1,4 @@
-import {
-  COOLDOWN_MINUTES,
-  GAME_TYPES,
-  type DayState,
-  type Settings,
-  type GameType,
-} from './types';
+import { COOLDOWN_MINUTES, GAME_TYPES, type DayState, type Settings, type GameType } from './types';
 
 export type Decision =
   | { allow: true }
@@ -133,8 +127,7 @@ export function summarize(state: DayState, settings: Settings, now: number): Gam
     used: countOf(state, gameType),
     limit: settings.limits[gameType],
     lossStreak: lossStreakOf(state, gameType).losses,
-    decision:
-      quotaBlock(state, settings, gameType) ??
+    decision: quotaBlock(state, settings, gameType) ??
       tiltBlock(state, settings, gameType, now) ?? { allow: true },
   }));
 }

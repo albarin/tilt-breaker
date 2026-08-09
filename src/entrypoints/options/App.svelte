@@ -56,14 +56,17 @@
     {#if detectedAccount !== null}
       Account: <strong>{detectedAccount}</strong>
     {:else}
-      No account yet. Open chess.com while signed in — it can take a minute.
+      No account yet. Open chess.com while signed in. It can take a while, come back later in
+      minute.
     {/if}
   </p>
 
   {#if settings !== null}
     <section>
       <h2>Games per day</h2>
-      <p class="hint">Most games you may play per game type.<br />Leave blank for no limit.</p>
+      <p class="hint">
+        Most games you may play per game type.<br />Leave blank for no limit.
+      </p>
       {#each GAME_TYPES as gameType (gameType)}
         <label>
           <span class="mode"><Icon {gameType} />{NAMES[gameType]}</span>
@@ -81,7 +84,9 @@
 
     <section>
       <h2>Between games</h2>
-      <p class="hint">Minutes you must wait after finishing a game,<br />whatever its type. Zero switches it off.</p>
+      <p class="hint">
+        Minutes you must wait after finishing a game,<br />whatever its type. Zero switches it off.
+      </p>
       <label>
         <span>Minutes</span>
         <input
@@ -106,7 +111,10 @@
           min="1"
           step="1"
           value={settings.tilt.losses}
-          onchange={(e) => save({ tilt: { losses: Number(e.currentTarget.value) } })}
+          onchange={(e) =>
+            save({
+              tilt: { losses: Number(e.currentTarget.value) },
+            })}
         />
       </label>
     </section>
@@ -142,7 +150,11 @@
     padding: 2rem 1.5rem 4rem;
     background: #262421;
     color: #f2f0ed;
-    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
     min-height: 100vh;
     box-sizing: border-box;
   }

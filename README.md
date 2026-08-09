@@ -18,12 +18,12 @@ into your rapid.
   actually knows the game type and result of every game, draws included, and it picks up
   what you play on mobile too.
 - **It never interrupts a game in progress.** Abandoning costs rating. The block only
-  covers the entry points to a *new* game: the lobby options, the play button and the
+  covers the entry points to a _new_ game: the lobby options, the play button and the
   rematch in the game-over modal.
 - **When in doubt it does not block.** If the API cannot be reached it uses the last thing
   it knew; it never assumes you have played nothing.
 - **A mandatory gap between games**, 15 minutes by default. Counted from your last game
-  of *any* type: a per-type gap would be walked around by alternating bullet and blitz.
+  of _any_ type: a per-type gap would be walked around by alternating bullet and blitz.
   It survives midnight, so finishing at 23:58 still holds you back at 00:05.
 - **Quotas reset at midnight.** Fixed, like the 60-minute rest after a losing streak:
   values that are not up for tuning.
@@ -52,8 +52,8 @@ pnpm zip              # store package
 pnpm zip:firefox      # package + the sources zip AMO requires
 ```
 
-In Chrome: `chrome://extensions` → developer mode → *Load unpacked* → `.output/chrome-mv3`.
-In Firefox: `about:debugging` → *This Firefox* → *Load Temporary Add-on* →
+In Chrome: `chrome://extensions` → developer mode → _Load unpacked_ → `.output/chrome-mv3`.
+In Firefox: `about:debugging` → _This Firefox_ → _Load Temporary Add-on_ →
 `.output/firefox-mv3/manifest.json`. **Firefox does not grant host permissions
 automatically**: give them by hand from the add-on's permissions.
 

@@ -87,7 +87,10 @@ describe('toRecord', () => {
 
 describe('gamesForDay', () => {
   it('keys by id, so re-reading the archive never double-counts', () => {
-    expect(Object.keys(build([apiGame('1'), apiGame('1'), apiGame('2')])).sort()).toEqual(['1', '2']);
+    expect(Object.keys(build([apiGame('1'), apiGame('1'), apiGame('2')])).sort()).toEqual([
+      '1',
+      '2',
+    ]);
   });
 
   it('drops whatever falls outside the day window', () => {

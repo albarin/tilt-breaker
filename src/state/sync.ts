@@ -51,7 +51,8 @@ export async function syncDay(input: {
     return { ok: false, reason: 'no-account', state: asState(stored, lastEnd) };
   }
 
-  if (!force && now - stored.fetchedAt < TTL_MS) return { ok: true, state: asState(stored, lastEnd) };
+  if (!force && now - stored.fetchedAt < TTL_MS)
+    return { ok: true, state: asState(stored, lastEnd) };
 
   const dayStart = dayStartMs(dayKey, DAY_RESET_HOUR);
   const dayEnd = dayEndMs(dayKey, DAY_RESET_HOUR);
@@ -66,7 +67,8 @@ export async function syncDay(input: {
     });
 
     // Taken from the whole archive, not the day slice: the gap has to survive midnight.
-    if (!archive.unchanged) lastEnd = await rememberLastGameEnd(lastGameEnd(archive.games, username));
+    if (!archive.unchanged)
+      lastEnd = await rememberLastGameEnd(lastGameEnd(archive.games, username));
 
     const snapshot = await serialize(async () => {
       const next: DaySnapshot = {

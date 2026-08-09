@@ -44,17 +44,23 @@ describe('countOf', () => {
 
 describe('lossStreakOf', () => {
   it('counts the losses at the end', () => {
-    expect(lossStreakOf(stateWith(streak('blitz', ['win', 'loss', 'loss'])), 'blitz').losses).toBe(2);
+    expect(lossStreakOf(stateWith(streak('blitz', ['win', 'loss', 'loss'])), 'blitz').losses).toBe(
+      2,
+    );
   });
 
   it('a win breaks the streak', () => {
-    expect(lossStreakOf(stateWith(streak('blitz', ['loss', 'loss', 'win'])), 'blitz').losses).toBe(0);
+    expect(lossStreakOf(stateWith(streak('blitz', ['loss', 'loss', 'win'])), 'blitz').losses).toBe(
+      0,
+    );
   });
 
   // Draws were the case DOM scraping could not tell apart: chess.com puts no draw
   // modifier on the modal, but the API names them.
   it('a draw breaks the streak too', () => {
-    expect(lossStreakOf(stateWith(streak('blitz', ['loss', 'loss', 'draw'])), 'blitz').losses).toBe(0);
+    expect(lossStreakOf(stateWith(streak('blitz', ['loss', 'loss', 'draw'])), 'blitz').losses).toBe(
+      0,
+    );
   });
 
   it('streaks are independent per game type', () => {
@@ -95,9 +101,9 @@ describe('evaluate', () => {
   /** A quota of 0 means "none at all today", blocked from the very first game. */
   it('a quota of zero blocks before you play anything', () => {
     const settings = settingsWith({ limits: { bullet: 0, blitz: 5, rapid: null } });
-    expect(evaluate({ state: stateWith([]), settings, gameType: 'bullet', now: NOON })).toMatchObject(
-      { allow: false, reason: 'quota', used: 0, limit: 0 },
-    );
+    expect(
+      evaluate({ state: stateWith([]), settings, gameType: 'bullet', now: NOON }),
+    ).toMatchObject({ allow: false, reason: 'quota', used: 0, limit: 0 });
   });
 
   it('spending blitz leaves rapid alone', () => {
@@ -160,7 +166,10 @@ describe('gap between games', () => {
     limits: { bullet: null, blitz: null, rapid: null },
     gapMinutes: 15,
   });
-  const withLastGame = (endedAt: number): DayState => ({ ...stateWith([]), lastGameEndedAt: endedAt });
+  const withLastGame = (endedAt: number): DayState => ({
+    ...stateWith([]),
+    lastGameEndedAt: endedAt,
+  });
 
   it('blocks until the gap has passed', () => {
     const state = withLastGame(NOON);
@@ -173,14 +182,18 @@ describe('gap between games', () => {
 
   it('allows once it has', () => {
     const state = withLastGame(NOON);
-    expect(evaluate({ state, settings, gameType: 'blitz', now: NOON + 16 * 60_000 }).allow).toBe(true);
+    expect(evaluate({ state, settings, gameType: 'blitz', now: NOON + 16 * 60_000 }).allow).toBe(
+      true,
+    );
   });
 
   /** Per-type would be walked around by alternating bullet and blitz. */
   it('is global: a bullet game holds blitz back too', () => {
     const state = withLastGame(NOON);
     for (const gameType of ['bullet', 'blitz', 'rapid'] as const) {
-      expect(evaluate({ state, settings, gameType, now: NOON + 60_000 }).allow, gameType).toBe(false);
+      expect(evaluate({ state, settings, gameType, now: NOON + 60_000 }).allow, gameType).toBe(
+        false,
+      );
     }
   });
 
@@ -191,7 +204,9 @@ describe('gap between games', () => {
   });
 
   it('does nothing with no game on record', () => {
-    expect(evaluate({ state: stateWith([]), settings, gameType: 'blitz', now: NOON }).allow).toBe(true);
+    expect(evaluate({ state: stateWith([]), settings, gameType: 'blitz', now: NOON }).allow).toBe(
+      true,
+    );
   });
 
   /**
