@@ -16,9 +16,14 @@
   const MIN_SAVING_MS = 400;
   const SAVED_MS = 1200;
 
-  onMount(async () => {
-    settings = await getSettings();
-    detectedAccount = await detectedUsernameItem.getValue();
+  onMount(() => {
+    void (async () => {
+      settings = await getSettings();
+      detectedAccount = await detectedUsernameItem.getValue();
+    })();
+    // Same as the popup: the account can land a few seconds after a chess.com tab reports
+    // in, and this page should fill itself in rather than need a reload.
+    return detectedUsernameItem.watch((value) => (detectedAccount = value));
   });
 
   async function save(patch: Partial<Settings>) {
@@ -51,7 +56,7 @@
     {#if detectedAccount !== null}
       Account: <strong>{detectedAccount}</strong>
     {:else}
-      No account. Open chess.com while signed in.
+      No account yet. Open chess.com while signed in — it can take a few seconds.
     {/if}
   </p>
 

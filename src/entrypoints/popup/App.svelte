@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { detectedUsernameItem } from '../../state/storage';
   import { loadView, type View } from '../../ui/load';
   import { COLORS, NAMES, blockReason, formatTime, usedFraction } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
@@ -14,9 +15,22 @@
    */
   const limited = $derived(view?.rows.filter((r) => r.limit !== null) ?? []);
 
-  onMount(async () => {
-    view = await loadView();
+  onMount(() => {
+    void refresh();
+    /*
+     * Detecting the account needs a chess.com tab to report in, which can take a few
+     * seconds after install. Watching just that key means the popup fills itself in when
+     * it lands, instead of telling you to close and reopen.
+     *
+     * Only that key: reacting to any storage change would loop, since `loadView` writes
+     * the day snapshot itself.
+     */
+    return detectedUsernameItem.watch(() => void refresh());
   });
+
+  async function refresh() {
+    view = await loadView();
+  }
 </script>
 
 <main>
@@ -27,8 +41,8 @@
   {:else}
     {#if view.problem === 'no-account'}
       <p class="warning">
-        No account detected yet. Open chess.com while signed in and counting starts on its
-        own.
+        No account yet. Open chess.com while signed in — it can take a few seconds, and
+        this updates on its own.
       </p>
     {:else if view.problem === 'network-error'}
       <p class="warning">Could not reach chess.com. This is the last data known.</p>
