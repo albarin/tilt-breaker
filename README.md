@@ -66,6 +66,22 @@ what tells them apart — and quotas apply from the first moment.
 To check the count adds up, open the popup: it already shows what you have played today
 without waiting or playing, because it comes from the API.
 
+## What you can change
+
+Four things, in the settings page:
+
+| Setting                                  | Default                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| Games per day, per game type             | 8 bullet, 6 blitz, 3 rapid (blank for no limit, `0` for none at all) |
+| Minutes between games                    | 15 (`0` switches it off)                                             |
+| Losses in a row before a game type locks | 3                                                                    |
+| Hide the rematch button                  | on                                                                   |
+
+Two things you cannot: quotas reset at **midnight**, and a losing streak locks that game
+type for **60 minutes**. Both are fixed so there is one less dial to turn on a bad night.
+
+There is no account to configure — it is read from your chess.com session.
+
 ## How it is put together
 
 ```
@@ -78,10 +94,12 @@ src/
   site/
     chesscom.ts    ALL knowledge of chess.com's DOM, isolated here
     overlay.ts     the blocking screen, in a shadow root
-  api/             client for chess.com's public monthly archive
+  api/             client for chess.com's public archive and profile
   state/
-    storage.ts     typed, serialised storage
+    storage.ts     typed storage; every read-modify-write is serialised
     sync.ts        brings the day's count up to date
+  ui/              shared by the two pages: palette, formatting, icons
+  messaging.ts     the whole content script ↔ background protocol
   entrypoints/
     background.ts       the only decider; queries the API and answers
     chesscom.content.ts enforces the block on the site's buttons
@@ -115,6 +133,11 @@ Three layers: a stylesheet that greys out blocked options, a **capture-phase** c
 interceptor (which cancels the click regardless of how chess.com wires its handlers), and
 the overlay that explains why.
 
+The overlay covers the whole viewport, so it takes the button, Escape or a click outside
+the card to dismiss — one exit would leave the page unusable if anything went wrong with
+it. Its shadow root is closed all the same: leaving should be easy for you, not for a
+script on the page reaching in to delete it.
+
 ## When chess.com changes
 
 It will, but the damage is bounded: **counting** no longer depends on the site's markup,
@@ -132,7 +155,9 @@ The site console carries the full trace under the `[tilt-breaker]` prefix.
 ## Checks
 
 ```sh
-pnpm test     # 142 tests (vitest + happy-dom)
-pnpm check    # types (svelte-check)
-pnpm icons    # regenerates public/icon/*.png with no external dependencies
+pnpm test          # 142 tests (vitest + happy-dom)
+pnpm check         # types (svelte-check)
+pnpm format        # prettier, configured to match what the code already used
+pnpm format:check  # the same, read-only
+pnpm icons         # regenerates public/icon/*.png with no external dependencies
 ```
