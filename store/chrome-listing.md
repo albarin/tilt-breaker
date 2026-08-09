@@ -108,14 +108,21 @@ If a reviewer questions the username leaving the browser, the answer is that it 
 to chess.com — the same service the user is signed into and the one the extension exists
 to work with — and to no third party.
 
-## Support and homepage URL
+## URLs
 
-Both must resolve, which is what the dashboard is complaining about. There is no site yet,
-so either leave them empty or publish the repository and use:
+All three must resolve for an anonymous visitor, which is how the dashboard checks them.
+A private repository answers 404 and fails all three, so the repository has to be public.
 
-- **Homepage:** the repository URL
-- **Support:** its issues page
+| Field          | URL                                                            |
+| -------------- | -------------------------------------------------------------- |
+| Homepage       | `https://github.com/albarin/tilt-breaker`                      |
+| Support        | `https://github.com/albarin/tilt-breaker/issues`               |
+| Privacy policy | `https://github.com/albarin/tilt-breaker/blob/main/PRIVACY.md` |
 
-Publishing it is the better of the two: it gives reviewers the source next to the package
-they are reviewing, and gives users somewhere to report a chess.com change that broke the
-blocking.
+Check one before saving:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' https://github.com/albarin/tilt-breaker
+```
+
+`200` is good, `404` means it is still private.
