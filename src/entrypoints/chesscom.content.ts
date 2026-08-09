@@ -1,6 +1,7 @@
 import type { Decision } from '../core/policy';
 import type { GameType } from '../core/types';
 import { sendMessage } from '../messaging';
+import { watchSettings } from '../state/storage';
 import {
   SEL,
   classifyClick,
@@ -59,8 +60,12 @@ export default defineContentScript({
     ctx.setInterval(tick, POLL_MS);
     tick();
 
-    // The quota changes when settings are edited from the popup.
-    browser.storage.local.onChanged.addListener(() => void refreshStatus());
+    /*
+     * Only the settings, not every storage write. Reacting to all of them meant reacting
+     * to the day snapshot that our own request had just caused, costing an extra round
+     * trip after every sync.
+     */
+    watchSettings(() => void refreshStatus(true));
 
     function injectStyle(): void {
       const style = document.createElement('style');

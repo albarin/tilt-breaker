@@ -41,7 +41,7 @@ export const detectedUsernameItem = storage.defineItem<string | null>('local:det
 });
 
 /**
- * Serialises writes.
+ * Serialises writes. Every read-modify-write in this file goes through it.
  *
  * Several chess.com tabs can talk to the background at once, and a `get` followed by a
  * `set` with an `await` in between is easy to interleave.
@@ -61,10 +61,17 @@ export async function getSettings(): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...stored, tilt: { ...DEFAULT_SETTINGS.tilt, ...stored?.tilt } };
 }
 
-export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
-  const merged = { ...(await getSettings()), ...patch };
-  await settingsItem.setValue(merged);
-  return merged;
+export function setSettings(patch: Partial<Settings>): Promise<Settings> {
+  return serialize(async () => {
+    const merged = { ...(await getSettings()), ...patch };
+    await settingsItem.setValue(merged);
+    return merged;
+  });
+}
+
+/** Fires when the settings change, and only then. */
+export function watchSettings(onChange: () => void): () => void {
+  return settingsItem.watch(() => onChange());
 }
 
 /** The stored snapshot, or `null` if there is none or it belongs to another day. */
@@ -79,17 +86,26 @@ export function setSnapshot(snapshot: DaySnapshot): Promise<void> {
 }
 
 /** Records the signed-in account. Returns `true` if it differs from the previous one. */
-export async function rememberDetectedUsername(username: string): Promise<boolean> {
-  const previous = await detectedUsernameItem.getValue();
-  if (previous === username) return false;
-  await detectedUsernameItem.setValue(username);
-  return true;
+export function rememberDetectedUsername(username: string): Promise<boolean> {
+  return serialize(async () => {
+    const previous = await detectedUsernameItem.getValue();
+    if (previous === username) return false;
+    await detectedUsernameItem.setValue(username);
+    return true;
+  });
 }
 
-/** Records a game end, never going backwards. */
-export async function rememberLastGameEnd(endedAt: number | null): Promise<number | null> {
-  const previous = await lastGameEndItem.getValue();
-  if (endedAt === null || (previous !== null && previous >= endedAt)) return previous;
-  await lastGameEndItem.setValue(endedAt);
-  return endedAt;
+/**
+ * Records a game end, never going backwards.
+ *
+ * Serialised like every other read-modify-write here: several chess.com tabs sync at
+ * once, and an unguarded pair would let the later write lose to the earlier one.
+ */
+export function rememberLastGameEnd(endedAt: number | null): Promise<number | null> {
+  return serialize(async () => {
+    const previous = await lastGameEndItem.getValue();
+    if (endedAt === null || (previous !== null && previous >= endedAt)) return previous;
+    await lastGameEndItem.setValue(endedAt);
+    return endedAt;
+  });
 }
