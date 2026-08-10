@@ -47,6 +47,18 @@ export const SEL = {
   /** The game-over modal, buttons included. */
   gameOverShell: '[class*="game-over-modal-shell-container"]',
   /**
+   * The second "Rematch" / "New N min" pair.
+   *
+   * When a game ends chess.com renders that pair twice: inside the game-over modal, and
+   * again in the sidebar next to "Game Review", which survives dismissing the modal. The
+   * sidebar copy is outside `gameOverShell`, so guarding only the modal left the whole
+   * sidebar as a way around every block.
+   *
+   * Its own container, and the sidebar's "Game Review" lives in a sibling one
+   * (`game-review-buttons-component`), so reviewing a game stays untouched.
+   */
+  newGameButtons: '[class*="new-game-buttons-component"]',
+  /**
    * The modal's close X, which is also a `<button>`. It must always get through:
    * blocking it would strand the modal on screen with no way to dismiss it.
    */
@@ -162,7 +174,8 @@ export type ClickTarget =
  *
  * Inside the modal only "Rematch" and "New N min" are in the way, both `<button>`. Links
  * ("Game Review", analysis) get through — reviewing a game is not playing another — and
- * so does the close X, or the modal would be stuck on screen.
+ * so does the close X, or the modal would be stuck on screen. The sidebar copy of that
+ * same pair is judged by its container instead, which holds nothing else.
  */
 export function classifyClick(target: EventTarget | null): ClickTarget {
   if (!(target instanceof Element)) return { kind: 'other' };
@@ -185,6 +198,14 @@ export function classifyClick(target: EventTarget | null): ClickTarget {
   ) {
     return { kind: 'rematch' };
   }
+
+  // The sidebar pair. Its container starts games and holds nothing else, so a button in
+  // it needs no further test; requiring one keeps a click on the container's own padding
+  // from raising the overlay for nothing.
+  if (target.closest(SEL.newGameButtons) !== null && target.closest('button') !== null) {
+    return { kind: 'rematch' };
+  }
+
   return { kind: 'other' };
 }
 
@@ -196,7 +217,8 @@ export function classifyClick(target: EventTarget | null): ClickTarget {
  * before it is reached for.
  */
 export function findRematchButtons(root: ParentNode): Element[] {
-  return Array.from(root.querySelectorAll(`${SEL.gameOverShell} button`)).filter(
+  const inBoth = `${SEL.gameOverShell} button, ${SEL.newGameButtons} button`;
+  return Array.from(root.querySelectorAll(inBoth)).filter(
     (button) => classifyClick(button).kind === 'rematch',
   );
 }

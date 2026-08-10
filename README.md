@@ -22,8 +22,9 @@ into your rapid.
   actually knows the game type and result of every game, draws included, and it picks up
   what you play on mobile too.
 - **It never interrupts a game in progress.** Abandoning costs rating. The block only
-  covers the entry points to a _new_ game: the lobby options, the play button and the
-  rematch in the game-over modal.
+  covers the entry points to a _new_ game: the lobby options, the play button, and the
+  "Rematch" / "New N min" pair — which chess.com renders twice when a game ends, once in
+  the game-over modal and again in the sidebar, where it outlives dismissing the modal.
 - **When in doubt it does not block.** If the API cannot be reached it uses the last thing
   it knew; it never assumes you have played nothing.
 - **A mandatory gap between games**, 15 minutes by default. Counted from your last game
@@ -123,8 +124,8 @@ Until it does, the gap between games is measured from the _previous_ one — and
 long game that gap has already expired, so nothing blocks. Short games hide it, because
 the previous game was recent enough that the stale gap happened to still be running.
 
-Blocking rematch does not close this on its own: it only covers the modal, not walking
-back to the lobby. So the content script reports the moment one of your games finishes,
+Blocking rematch does not close this on its own: it covers the buttons that chain a game,
+not walking back to the lobby. So the content script reports the moment one of your games finishes,
 and the gap starts from there. The stored end never moves backwards, so the archive can
 only ever confirm it.
 

@@ -68,6 +68,27 @@ const MODAL = `
     <button id="rematch">Rematch</button>
   </div>`;
 
+/**
+ * The same pair again, in the sidebar. Copied from the live page: chess.com renders
+ * "Rematch" and "New N min" twice when a game ends, and this copy outlives dismissing the
+ * modal. "Game Review" sits beside them in its own container and must stay clickable.
+ */
+const SIDEBAR = `
+  <div class="board-layout-sidebar" id="board-layout-sidebar">
+    <div class="game-review-emphasis-content">
+      <div class="game-review-buttons-component">
+        <a id="side-review" class="cc-button-component" href="/analysis/game/live/1?tab=review"
+           aria-label="Game Review">Game Review</a>
+      </div>
+      <div class="new-game-buttons-component">
+        <div class="new-game-buttons-buttons">
+          <button id="side-new" class="cc-button-component" type="button" aria-label="New 3 min">New 3 min</button>
+          <button id="side-rematch" class="cc-button-component" type="button" aria-label="Rematch">Rematch</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
 describe('readSelectedGameType', () => {
   it('reads the selected game type off the icon', () => {
     render(LOBBY);
@@ -145,6 +166,22 @@ describe('classifyClick', () => {
   });
 
   /**
+   * The hole this closes: the sidebar keeps its own "Rematch" and "New N min" after the
+   * modal is dismissed, and guarding only the modal left them as a way around every block.
+   */
+  it('recognises the sidebar pair as well as the modal one', () => {
+    render(SIDEBAR);
+    expect(classifyClick(el('side-rematch'))).toEqual({ kind: 'rematch' });
+    expect(classifyClick(el('side-new'))).toEqual({ kind: 'rematch' });
+  });
+
+  // It sits beside them, and blocking it would take away the reason to stop and look.
+  it('never touches the sidebar Game Review', () => {
+    render(SIDEBAR);
+    expect(classifyClick(el('side-review'))).toEqual({ kind: 'other' });
+  });
+
+  /**
    * The close X is a `<button>` inside the modal too. Blocking it would strand the modal
    * on screen with no way to dismiss it.
    */
@@ -175,6 +212,15 @@ describe('findRematchButtons', () => {
   it('never returns the close button', () => {
     render(MODAL);
     expect(findRematchButtons(document).map((b) => b.id)).not.toContain('close');
+  });
+
+  it('greys the sidebar pair too, and never Game Review', () => {
+    render(MODAL + SIDEBAR);
+    expect(
+      findRematchButtons(document)
+        .map((b) => b.id)
+        .sort(),
+    ).toEqual(['new', 'rematch', 'side-new', 'side-rematch']);
   });
 
   it('with no modal there is nothing to grey out', () => {
