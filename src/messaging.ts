@@ -1,4 +1,4 @@
-import type { Decision } from './core/policy';
+import type { Decision, GameTypeSummary } from './core/policy';
 import type { GameType } from './core/types';
 
 /**
@@ -18,12 +18,25 @@ export type Message = {
    * already expired.
    */
   gameEnded?: boolean;
+  /** Also answer with a {@link View}. What the popup asks for. */
+  view?: boolean;
+};
+
+/** Everything the popup needs to render, in one answer. */
+export type View = {
+  rows: GameTypeSummary[];
+  /** When the gap between games lifts. Global, so it is shown once and not per row. */
+  gapUntil?: number;
+  /** Set when the API could not be consulted; the rows are the last thing we knew. */
+  problem?: 'no-account' | 'network-error';
 };
 
 export type Status = {
   decisions: Record<GameType, Decision>;
   /** Whether rematch is blocked. Independent of the quota: it is a separate rule. */
   blockRematch: boolean;
+  /** Present when the message asked for it. */
+  view?: View;
 };
 
 export function sendMessage(message: Message): Promise<Status> {

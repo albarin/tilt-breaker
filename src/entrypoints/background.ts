@@ -1,4 +1,4 @@
-import { evaluate, type Decision } from '../core/policy';
+import { evaluate, gapBlock, summarize, type Decision } from '../core/policy';
 import { GAME_TYPES, type GameType } from '../core/types';
 import type { Message, Status } from '../messaging';
 import { fetchAvatar } from '../api/chesscom-api';
@@ -81,5 +81,17 @@ async function handle(message: Message): Promise<Status> {
   ) as Record<GameType, Decision>;
 
   // Deliberately independent of the quota: rematch is its own rule with its own switch.
-  return { decisions, blockRematch: settings.blockRematch };
+  const status: Status = { decisions, blockRematch: settings.blockRematch };
+
+  // The popup's view is computed here and not in the popup: syncing from two contexts
+  // would race the storage write queue, which serialises within one context only.
+  if (message.view === true) {
+    const gap = gapBlock(outcome.state, settings, now);
+    status.view = {
+      rows: summarize(outcome.state, settings, now),
+      ...(gap === null ? {} : { gapUntil: gap.until }),
+      ...(outcome.ok ? {} : { problem: outcome.reason }),
+    };
+  }
+  return status;
 }
