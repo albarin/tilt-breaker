@@ -7,7 +7,9 @@
   import Icon from '../../ui/Icon.svelte';
 
   let settings = $state<Settings | null>(null);
-  let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
+  let saveState = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  /** Bumped to rebuild the fields when a failed save has to undo what they show. */
+  let formKey = $state(0);
 
   const { account, stop } = watchAccount();
 
@@ -30,19 +32,30 @@
   async function save(patch: Partial<Settings>) {
     const seq = ++saveSeq;
     saveState = 'saving';
-    const [saved] = await Promise.all([
-      setSettings(patch),
-      new Promise((done) => setTimeout(done, MIN_SAVING_MS)),
-    ]);
-    // A newer edit is already in flight; its save supersedes this one.
-    if (seq !== saveSeq) return;
-    settings = saved;
-    saveState = 'saved';
+    try {
+      const [saved] = await Promise.all([
+        setSettings(patch),
+        new Promise((done) => setTimeout(done, MIN_SAVING_MS)),
+      ]);
+      // A newer edit is already in flight; its save supersedes this one.
+      if (seq !== saveSeq) return;
+      settings = saved;
+      saveState = 'saved';
 
-    // If another save started meanwhile, this timer must not hide it.
-    setTimeout(() => {
-      if (saveState === 'saved') saveState = 'idle';
-    }, SAVED_MS);
+      // If another save started meanwhile, this timer must not hide it.
+      setTimeout(() => {
+        if (saveState === 'saved') saveState = 'idle';
+      }, SAVED_MS);
+    } catch (error) {
+      // A write that throws used to leave "Saving…" on screen for good, which reads as
+      // still trying. Say it failed, and put the fields back to what is really stored —
+      // rebuilt from scratch, because an unchanged value does not re-render on its own.
+      if (seq !== saveSeq) return;
+      console.error('[tilt-breaker] could not save settings', error);
+      settings = await getSettings();
+      formKey++;
+      saveState = 'error';
+    }
   }
 
   /**
@@ -68,8 +81,11 @@
     const raw = input.value.trim();
     const value = raw === '' ? null : wholeNumber(raw, 0);
     if (raw !== '' && value === null) return revert(input, stored);
-    settings.limits = { ...settings.limits, [gameType]: value };
-    void save({ limits: settings.limits });
+    // The plain object, not `settings.limits` read back: reactive state hands out a proxy,
+    // and storage cannot clone one.
+    const limits = { ...settings.limits, [gameType]: value };
+    settings.limits = limits;
+    void save({ limits });
   }
 
   /**
@@ -84,8 +100,9 @@
     if (settings === null) return;
     const value = wholeNumber(input.value, 1);
     if (value === null) return revert(input, settings.tilt.losses);
-    settings.tilt = { losses: value };
-    void save({ tilt: settings.tilt });
+    const tilt = { losses: value };
+    settings.tilt = tilt;
+    void save({ tilt });
   }
 
   function changeGap(input: HTMLInputElement) {
@@ -114,77 +131,84 @@
   </p>
 
   {#if settings !== null}
-    <section>
-      <h2>Games per day</h2>
-      <p class="hint">
-        Most games you may play per game type.<br />Leave blank for no limit.
-      </p>
-      {#each GAME_TYPES as gameType (gameType)}
+    <!-- Keyed so a failed save can rebuild the fields: putting back a value they already
+         show is not a state change, and Svelte would skip the DOM write. -->
+    {#key formKey}
+      <section>
+        <h2>Games per day</h2>
+        <p class="hint">
+          Most games you may play per game type.<br />Leave blank for no limit.
+        </p>
+        {#each GAME_TYPES as gameType (gameType)}
+          <label>
+            <span class="mode"><Icon {gameType} />{NAMES[gameType]}</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder="no limit"
+              value={settings.limits[gameType] ?? ''}
+              onchange={(e) => changeLimit(gameType, e.currentTarget)}
+            />
+          </label>
+        {/each}
+      </section>
+
+      <section>
+        <h2>Between games</h2>
+        <p class="hint">
+          Minutes you must wait after finishing a game,<br />whatever its type. Zero switches it
+          off.
+        </p>
         <label>
-          <span class="mode"><Icon {gameType} />{NAMES[gameType]}</span>
+          <span>Minutes</span>
           <input
             type="number"
             min="0"
-            step="1"
-            placeholder="no limit"
-            value={settings.limits[gameType] ?? ''}
-            onchange={(e) => changeLimit(gameType, e.currentTarget)}
+            step="5"
+            value={settings.gapMinutes}
+            onchange={(e) => changeGap(e.currentTarget)}
           />
         </label>
-      {/each}
-    </section>
+      </section>
 
-    <section>
-      <h2>Between games</h2>
-      <p class="hint">
-        Minutes you must wait after finishing a game,<br />whatever its type. Zero switches it off.
-      </p>
-      <label>
-        <span>Minutes</span>
-        <input
-          type="number"
-          min="0"
-          step="5"
-          value={settings.gapMinutes}
-          onchange={(e) => changeGap(e.currentTarget)}
-        />
-      </label>
-    </section>
+      <section>
+        <h2>Losing streak</h2>
+        <p class="hint">
+          Losses in a row allowed in one game type<br />before it locks for {COOLDOWN_MINUTES} minutes.
+        </p>
+        <label>
+          <span>Losses</span>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={settings.tilt.losses}
+            onchange={(e) => changeLosses(e.currentTarget)}
+          />
+        </label>
+      </section>
 
-    <section>
-      <h2>Losing streak</h2>
-      <p class="hint">
-        Losses in a row allowed in one game type<br />before it locks for {COOLDOWN_MINUTES} minutes.
-      </p>
-      <label>
-        <span>Losses</span>
-        <input
-          type="number"
-          min="1"
-          step="1"
-          value={settings.tilt.losses}
-          onchange={(e) => changeLosses(e.currentTarget)}
-        />
-      </label>
-    </section>
-
-    <section>
-      <h2>Rematches</h2>
-      <label class="check">
-        <input
-          type="checkbox"
-          checked={settings.blockRematch}
-          onchange={(e) => save({ blockRematch: e.currentTarget.checked })}
-        />
-        <span>Block the rematch button</span>
-      </label>
-    </section>
+      <section>
+        <h2>Rematches</h2>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={settings.blockRematch}
+            onchange={(e) => save({ blockRematch: e.currentTarget.checked })}
+          />
+          <span>Block the rematch button</span>
+        </label>
+      </section>
+    {/key}
   {/if}
 
   {#if saveState !== 'idle'}
-    <p class="toast" role="status">
+    <p class="toast" class:failed={saveState === 'error'} role="status">
       {#if saveState === 'saving'}
         <span class="spinner" aria-hidden="true"></span>Saving…
+      {:else if saveState === 'error'}
+        Not saved. The fields show what is stored.
       {:else}
         Saved
       {/if}
@@ -309,6 +333,11 @@
     color: #fff;
     font-size: 0.9375rem;
     font-weight: 600;
+  }
+
+  /* Stays until the next save: unlike "Saved", it is not good news to be missed. */
+  .toast.failed {
+    background: #b0574f;
   }
 
   .spinner {

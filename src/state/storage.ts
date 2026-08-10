@@ -83,9 +83,22 @@ export async function getSettings(): Promise<Settings> {
   };
 }
 
+/**
+ * Plain data, whatever the caller handed us.
+ *
+ * `browser.storage` structured-clones what it is given, and a structured clone refuses a
+ * proxy — which is exactly what the settings page holds, its state being reactive. The
+ * write then rejects and the page is left believing it saved. Settings are plain JSON
+ * data, so a round trip is both the check and the repair, and it happens here because
+ * this is the one door to storage.
+ */
+function plainData<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 export function setSettings(patch: Partial<Settings>): Promise<Settings> {
   return serialize(async () => {
-    const merged = { ...(await getSettings()), ...patch };
+    const merged = plainData({ ...(await getSettings()), ...patch });
     await settingsItem.setValue(merged);
     return merged;
   });

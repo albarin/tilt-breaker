@@ -47,6 +47,24 @@ describe('settings', () => {
     expect((await getSettings()).limits.rapid).toBeNull();
   });
 
+  /**
+   * The settings page holds reactive state, which hands out proxies, and a real
+   * `browser.storage` structured-clones what it is given — which a proxy cannot survive.
+   * The write rejected, the page sat on "Saving…" for good and nothing reached disk.
+   */
+  it('stores plain data even when handed a proxy', async () => {
+    const limits = new Proxy({ bullet: 1, blitz: 2, rapid: 3 }, {});
+    expect(() => structuredClone(limits)).toThrow(); // the shape that broke it
+
+    const saved = await setSettings({ limits });
+
+    expect(saved.limits).toEqual({ bullet: 1, blitz: 2, rapid: 3 });
+    expect(() => structuredClone(saved)).not.toThrow();
+    const stored = (await fakeBrowser.storage.local.get('settings')).settings;
+    expect(() => structuredClone(stored)).not.toThrow();
+    expect((await getSettings()).limits.bullet).toBe(1);
+  });
+
   // Every read-modify-write here is serialised, so concurrent ones cannot lose each other.
   it('concurrent changes do not overwrite one another', async () => {
     await Promise.all([
