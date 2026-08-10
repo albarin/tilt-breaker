@@ -13,6 +13,7 @@
     "zip:firefox": "wxt zip -b firefox",
     "icons": "node scripts/make-icons.mjs",
     "test": "TZ=Europe/Madrid vitest run",
+    "smoke": "wxt build && node scripts/smoke-options.mjs",
     "test:watch": "TZ=Europe/Madrid vitest",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "format": "prettier --write .",

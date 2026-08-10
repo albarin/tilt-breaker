@@ -181,9 +181,17 @@ the sources in `src`.
 ## Checks
 
 ```sh
-pnpm test          # 151 tests (vitest + happy-dom)
+pnpm test          # 180 tests (vitest + happy-dom)
 pnpm check         # types (svelte-check)
+pnpm smoke         # builds, then drives the settings page in a real Chrome
 pnpm format        # prettier, configured to match what the code already used
 pnpm format:check  # the same, read-only
 pnpm icons         # regenerates public/icon/*.png with no external dependencies
 ```
+
+`pnpm smoke` exists because of a bug the other checks all missed: the settings page passed
+reactive state — a proxy — to `browser.storage`, which structured-clones and cannot clone
+one. Every write rejected in the browser while the types checked out and the suite stayed
+green, since the storage double kept whatever it was handed. The double now clones the way
+the browser does (`src/test-setup.ts`), which is what the unit tests rely on; the smoke
+check is what confirms that rule still matches a real browser. It needs Chrome installed.
