@@ -1,5 +1,5 @@
 import type { Decision } from '../core/policy';
-import type { GameType } from '../core/types';
+import { GAME_TYPES, type GameType } from '../core/types';
 import { sendMessage } from '../messaging';
 import { watchSettings } from '../state/storage';
 import {
@@ -42,10 +42,6 @@ const CSS = `
 /**
  * The content script neither counts games nor reads results: the API does that. All it
  * does here is enforce the block on the buttons that start a new game.
- *
- * Because rematch is always blocked, the only way to chain another game is walking back
- * to the lobby — and that navigation takes far longer than the API needs to learn about
- * the game you just finished. So nothing has to be tracked.
  */
 export default defineContentScript({
   matches: ['*://*.chess.com/*'],
@@ -107,10 +103,27 @@ export default defineContentScript({
       }
     }
 
-    function blockedReason(gameType: GameType | null): Decision | null {
+    function blockedReason(gameType: GameType | null): Extract<Decision, { allow: false }> | null {
       if (gameType === null) return null;
       const decision = decisions[gameType];
       return decision !== undefined && !decision.allow ? decision : null;
+    }
+
+    /**
+     * A block covering every game type, so it holds whatever game gets started next.
+     *
+     * The game-over modal's buttons chain a game of the type just played, which the page
+     * does not name — so only a blanket block can be enforced there without guessing.
+     * Prefers the gap, the block that is global by design.
+     */
+    function blanketBlock(): { gameType: GameType; decision: Decision } | null {
+      const blocks: { gameType: GameType; decision: Extract<Decision, { allow: false }> }[] = [];
+      for (const gameType of GAME_TYPES) {
+        const decision = blockedReason(gameType);
+        if (decision === null) return null;
+        blocks.push({ gameType, decision });
+      }
+      return blocks.find(({ decision }) => decision.reason === 'gap') ?? blocks[0]!;
     }
 
     function block(event: Event, copy: OverlayCopy | null, reason: unknown): void {
@@ -144,10 +157,15 @@ export default defineContentScript({
         case 'startGame':
           return blockIfSpent(event, readSelectedGameType(document));
 
-        // Blocked always and on purpose, quota or no quota.
-        case 'rematch':
-          if (blockRematch) block(event, REMATCH_COPY, 'rematch');
+        // The impulse rule first; with its toggle off, the modal is still no side door
+        // around a block that covers every game type.
+        case 'rematch': {
+          if (blockRematch) return block(event, REMATCH_COPY, 'rematch');
+          const blanket = blanketBlock();
+          if (blanket !== null)
+            block(event, copyFor(blanket.decision, blanket.gameType, Date.now()), blanket.decision);
           return;
+        }
 
         // Opening the dropdown starts no game, and neither does anything else.
         case 'timeSelector':
@@ -167,8 +185,10 @@ export default defineContentScript({
       grey(SEL.timeSelectorOption, gameTypeOfOption);
       grey(SEL.quickPlay, (el) => gameTypeFromQuickPlay(el.getAttribute('href')));
 
+      const blanket = blanketBlock();
       for (const button of findRematchButtons(document)) {
         button.toggleAttribute(HIDDEN_ATTR, blockRematch);
+        button.toggleAttribute(BLOCKED_ATTR, !blockRematch && blanket !== null);
       }
     }
 
