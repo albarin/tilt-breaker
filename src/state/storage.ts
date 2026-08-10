@@ -8,6 +8,12 @@ import { DAY_RESET_HOUR, DEFAULT_SETTINGS, type GameRecord, type Settings } from
  */
 export type DaySnapshot = {
   dayKey: string;
+  /**
+   * The account the games belong to. A different sign-in invalidates the snapshot,
+   * stamps included: sending the old account's If-Modified-Since against the new
+   * account's archive can 304 and keep counting games the new account never played.
+   */
+  username: string;
   games: Record<string, GameRecord>;
   fetchedAt: number;
   /** Per-month stamps for conditional requests. */
@@ -30,6 +36,9 @@ export const avatarItem = storage.defineItem<string | null>('local:avatar', { fa
  *
  * Stored apart from the day snapshot, which resets at midnight: the gap between games has
  * to hold at 00:05 for a game that ended at 23:58.
+ *
+ * Deliberately not per account, unlike the snapshot: the gap is rest for the person, and
+ * switching accounts to dodge it is exactly the move it exists to stop.
  */
 export const lastGameEndItem = storage.defineItem<number | null>('local:lastGameEnd', {
   fallback: null,
@@ -77,10 +86,13 @@ export function watchSettings(onChange: () => void): () => void {
   return settingsItem.watch(() => onChange());
 }
 
-/** The stored snapshot, or `null` if there is none or it belongs to another day. */
-export async function getSnapshot(now: number): Promise<DaySnapshot | null> {
+/** The stored snapshot, or `null` if there is none or it belongs to another day or account. */
+export async function getSnapshot(
+  now: number,
+  username: string | null,
+): Promise<DaySnapshot | null> {
   const stored = await snapshotItem.getValue();
-  if (stored === null) return null;
+  if (stored === null || stored.username !== username) return null;
   return stored.dayKey === dayKeyOf(now, DAY_RESET_HOUR) ? stored : null;
 }
 

@@ -111,6 +111,23 @@ describe('syncDay', () => {
     });
   });
 
+  /**
+   * The snapshot is keyed by account, stamps included. Without that, the old account's
+   * If-Modified-Since could 304 against the new account's archive and keep counting
+   * games the new account never played.
+   */
+  it('an account switch drops the snapshot and its stamps', async () => {
+    await sync(vi.fn().mockResolvedValue(response({ games: [apiGame('1')] }, 200, 'stamp')), true);
+
+    await rememberDetectedUsername('someone-else');
+    const fetchImpl = archive();
+    const outcome = await sync(fetchImpl, true);
+
+    expect(countOf(outcome.state, 'bullet')).toBe(0);
+    // Asked fresh, not conditionally: the stamp belonged to the previous account.
+    expect(fetchImpl).toHaveBeenCalledWith(expect.any(String), { headers: {} });
+  });
+
   it('resets on its own when the day changes', async () => {
     await sync(archive(apiGame('1')));
     const tomorrow = new Date('2026-08-09T12:00:00').getTime();

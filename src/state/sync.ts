@@ -38,7 +38,16 @@ export async function syncDay(input: {
 }): Promise<SyncOutcome> {
   const { now, force = false, fetchImpl } = input;
   const dayKey = dayKeyOf(now, DAY_RESET_HOUR);
-  const stored = (await getSnapshot(now)) ?? { dayKey, games: {}, fetchedAt: 0, lastModified: {} };
+  // The snapshot is keyed by account: after a sign-in change nothing stored may stand,
+  // stamps included, or a 304 would keep counting the previous account's games.
+  const username = await detectedUsernameItem.getValue();
+  const stored = (await getSnapshot(now, username)) ?? {
+    dayKey,
+    username: username ?? '',
+    games: {},
+    fetchedAt: 0,
+    lastModified: {},
+  };
   const asState = (snapshot: DaySnapshot, lastEnd: number | null): DayState => ({
     dayKey,
     games: snapshot.games,
@@ -46,7 +55,6 @@ export async function syncDay(input: {
   });
   let lastEnd = await lastGameEndItem.getValue();
 
-  const username = await detectedUsernameItem.getValue();
   if (username === null) {
     return { ok: false, reason: 'no-account', state: asState(stored, lastEnd) };
   }
@@ -73,6 +81,7 @@ export async function syncDay(input: {
     const snapshot = await serialize(async () => {
       const next: DaySnapshot = {
         dayKey,
+        username,
         // A 304 on every month means you have not played since last time, so the games we
         // already had still stand.
         games: archive.unchanged
