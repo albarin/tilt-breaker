@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { COOLDOWN_MINUTES, GAME_TYPES, type Settings, type GameType } from '../../core/types';
-  import { avatarItem, detectedUsernameItem, getSettings, setSettings } from '../../state/storage';
+  import { getSettings, setSettings } from '../../state/storage';
+  import { NO_ACCOUNT_HINT, watchAccount } from '../../ui/account.svelte';
   import { NAMES } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
 
   let settings = $state<Settings | null>(null);
-  let detectedAccount = $state<string | null>(null);
-  let avatar = $state<string | null>(null);
   let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
+
+  const { account, stop } = watchAccount();
 
   /**
    * Writing to local storage is near-instant. Without a floor the "saving" state would be
@@ -20,16 +21,8 @@
   onMount(() => {
     void (async () => {
       settings = await getSettings();
-      detectedAccount = await detectedUsernameItem.getValue();
-      avatar = await avatarItem.getValue();
     })();
-    // Same as the popup: both land a few seconds after a chess.com tab reports in, and
-    // this page should fill itself in rather than need a reload.
-    const unwatch = [
-      detectedUsernameItem.watch((value) => (detectedAccount = value)),
-      avatarItem.watch((value) => (avatar = value)),
-    ];
-    return () => unwatch.forEach((stop) => stop());
+    return stop;
   });
 
   let saveSeq = 0;
@@ -106,16 +99,17 @@
 
 <main>
   <p class="account">
-    {#if detectedAccount !== null}
+    {#if account.name !== null}
       <!-- Decoration: if it fails to load it just goes away, the name stays. -->
-      {#if avatar !== null}
-        <img src={avatar} alt="" onerror={() => (avatar = null)} />
+      {#if account.avatar !== null}
+        <img src={account.avatar} alt="" onerror={account.dropAvatar} />
       {/if}
-      <strong>{detectedAccount}</strong>
+      <strong>{account.name}</strong>
     {:else}
       No account yet. Open <a href="https://www.chess.com/" target="_blank" rel="noreferrer"
         >chess.com</a
-      > while signed in. It can take a while, come back in a minute.
+      >
+      while signed in. {NO_ACCOUNT_HINT}
     {/if}
   </p>
 
