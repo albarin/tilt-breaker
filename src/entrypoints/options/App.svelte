@@ -32,12 +32,17 @@
     return () => unwatch.forEach((stop) => stop());
   });
 
+  let saveSeq = 0;
+
   async function save(patch: Partial<Settings>) {
+    const seq = ++saveSeq;
     saveState = 'saving';
     const [saved] = await Promise.all([
       setSettings(patch),
       new Promise((done) => setTimeout(done, MIN_SAVING_MS)),
     ]);
+    // A newer edit is already in flight; its save supersedes this one.
+    if (seq !== saveSeq) return;
     settings = saved;
     saveState = 'saved';
 
@@ -61,27 +66,40 @@
   }
 
   /** Empty means no limit. That is how rapid deliberately stays uncapped. */
-  function changeLimit(gameType: GameType, raw: string) {
+  function changeLimit(gameType: GameType, input: HTMLInputElement) {
     if (settings === null) return;
-    const value = raw.trim() === '' ? null : wholeNumber(raw, 0);
-    if (raw.trim() !== '' && value === null) return revert();
-    void save({ limits: { ...settings.limits, [gameType]: value } });
+    const stored = settings.limits[gameType] ?? '';
+    // A malformed entry ('3-', a lone 'e') also reads as an empty value; badInput tells
+    // it apart from a deliberate clear, the only '' allowed to mean "no limit".
+    if (input.validity.badInput) return revert(input, stored);
+    const raw = input.value.trim();
+    const value = raw === '' ? null : wholeNumber(raw, 0);
+    if (raw !== '' && value === null) return revert(input, stored);
+    settings.limits = { ...settings.limits, [gameType]: value };
+    void save({ limits: settings.limits });
   }
 
-  /** Puts a rejected value back, so the field never shows something we did not store. */
-  function revert() {
-    settings = settings === null ? null : { ...settings };
+  /**
+   * Puts a rejected value back, so the field never shows something we did not store.
+   * Written straight to the DOM: the state did not change, so a re-render skips it.
+   */
+  function revert(input: HTMLInputElement, stored: number | '') {
+    input.value = String(stored);
   }
 
-  function changeLosses(raw: string) {
-    const value = wholeNumber(raw, 1);
-    if (value === null) return revert();
-    void save({ tilt: { losses: value } });
+  function changeLosses(input: HTMLInputElement) {
+    if (settings === null) return;
+    const value = wholeNumber(input.value, 1);
+    if (value === null) return revert(input, settings.tilt.losses);
+    settings.tilt = { losses: value };
+    void save({ tilt: settings.tilt });
   }
 
-  function changeGap(raw: string) {
-    const value = wholeNumber(raw, 0);
-    if (value === null) return revert();
+  function changeGap(input: HTMLInputElement) {
+    if (settings === null) return;
+    const value = wholeNumber(input.value, 0);
+    if (value === null) return revert(input, settings.gapMinutes);
+    settings.gapMinutes = value;
     void save({ gapMinutes: value });
   }
 </script>
@@ -116,7 +134,7 @@
             step="1"
             placeholder="no limit"
             value={settings.limits[gameType] ?? ''}
-            onchange={(e) => changeLimit(gameType, e.currentTarget.value)}
+            onchange={(e) => changeLimit(gameType, e.currentTarget)}
           />
         </label>
       {/each}
@@ -134,7 +152,7 @@
           min="0"
           step="5"
           value={settings.gapMinutes}
-          onchange={(e) => changeGap(e.currentTarget.value)}
+          onchange={(e) => changeGap(e.currentTarget)}
         />
       </label>
     </section>
@@ -151,7 +169,7 @@
           min="1"
           step="1"
           value={settings.tilt.losses}
-          onchange={(e) => changeLosses(e.currentTarget.value)}
+          onchange={(e) => changeLosses(e.currentTarget)}
         />
       </label>
     </section>
