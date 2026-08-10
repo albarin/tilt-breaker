@@ -121,7 +121,7 @@ describe('fetchGamesCovering', () => {
      * fetched again in full — otherwise its games would vanish from the count and lift
      * the block on every month boundary.
      */
-    it('one month changing refetches the 304\'d one in full', async () => {
+    it("one month changing refetches the 304'd one in full", async () => {
       const fetchImpl = vi
         .fn()
         .mockResolvedValueOnce(response(null, 304))
