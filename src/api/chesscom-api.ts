@@ -43,9 +43,18 @@ export function monthsCovering(startMs: number, endMs: number): Month[] {
   return months;
 }
 
+/**
+ * The profile endpoint for an account, and the base every other one hangs off.
+ *
+ * How a username becomes a URL is stated here and nowhere else: lowercased because the
+ * API keys players that way, escaped because names may carry anything.
+ */
+function playerUrl(username: string): string {
+  return `https://api.chess.com/pub/player/${encodeURIComponent(username.toLowerCase())}`;
+}
+
 export function archiveUrl(username: string, month: Month): string {
-  const user = encodeURIComponent(username.toLowerCase());
-  return `https://api.chess.com/pub/player/${user}/games/${monthKey(month).replace('-', '/')}`;
+  return `${playerUrl(username)}/games/${monthKey(month).replace('-', '/')}`;
 }
 
 /** `Last-Modified` stamps per month, so we only ask for what changed. */
@@ -137,8 +146,7 @@ export async function fetchAvatar(
   fetchImpl: Fetcher = fetch,
 ): Promise<string | null> {
   try {
-    const user = encodeURIComponent(username.toLowerCase());
-    const response = await fetchImpl(`https://api.chess.com/pub/player/${user}`);
+    const response = await fetchImpl(playerUrl(username));
     if (!response.ok) return null;
     const body = (await response.json()) as { avatar?: string };
     return body.avatar ?? null;

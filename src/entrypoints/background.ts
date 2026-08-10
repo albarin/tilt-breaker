@@ -59,7 +59,10 @@ async function refreshAvatar(username: string, accountChanged: boolean): Promise
 
 async function handle(message: Message): Promise<Status> {
   const now = Date.now();
-  const settings = await getSettings();
+  // Nothing below reads the settings until the sync is done, so the read rides alongside
+  // it instead of delaying it. The writes that follow are not so free: syncDay reads the
+  // very keys they set, so they stay ordered ahead of it.
+  const pendingSettings = getSettings();
 
   // A different signed-in account invalidates what we stored, so re-query immediately.
   const accountChanged =
@@ -71,7 +74,10 @@ async function handle(message: Message): Promise<Status> {
   // rememberLastGameEnd never moves backwards, so the archive can only confirm this.
   if (message.gameEnded === true) await rememberLastGameEnd(now);
 
-  const outcome = await syncDay({ now, force: accountChanged || message.force === true });
+  const [settings, outcome] = await Promise.all([
+    pendingSettings,
+    syncDay({ now, force: accountChanged || message.force === true }),
+  ]);
 
   const decisions = Object.fromEntries(
     GAME_TYPES.map((gameType) => [
