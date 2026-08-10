@@ -116,11 +116,17 @@ describe('fetchGamesCovering', () => {
       expect(result.lastModified['2026-08']).toBe(STAMP);
     });
 
-    it('one month changing is enough to stop being "unchanged"', async () => {
+    /**
+     * The day is rebuilt from `games` alone, so on a mixed answer the 304'd month must be
+     * fetched again in full — otherwise its games would vanish from the count and lift
+     * the block on every month boundary.
+     */
+    it('one month changing refetches the 304\'d one in full', async () => {
       const fetchImpl = vi
         .fn()
         .mockResolvedValueOnce(response(null, 304))
-        .mockResolvedValueOnce(response({ games: [{ url: 'new' }] }));
+        .mockResolvedValueOnce(response({ games: [{ url: 'new' }] }))
+        .mockResolvedValueOnce(response({ games: [{ url: 'old' }] }, 200, STAMP));
       const result = await fetchGamesCovering({
         username: 'alba',
         ...ACROSS_MONTHS,
@@ -128,7 +134,9 @@ describe('fetchGamesCovering', () => {
         fetchImpl,
       });
       expect(result.unchanged).toBe(false);
-      expect(result.games.map((g) => g.url)).toEqual(['new']);
+      expect(result.games.map((g) => g.url).sort()).toEqual(['new', 'old']);
+      // The refetch must not send the stamp back, or it would just 304 again.
+      expect(fetchImpl).toHaveBeenLastCalledWith(expect.any(String), { headers: {} });
     });
   });
 });

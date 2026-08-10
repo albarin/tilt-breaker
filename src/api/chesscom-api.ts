@@ -99,6 +99,18 @@ export async function fetchGamesCovering(input: {
     months.map((month) => fetchMonth(username, month, lastModified[monthKey(month)], fetchImpl)),
   );
 
+  // A mixed answer — one month 304, another changed — cannot keep any cache: the caller
+  // rebuilds the day from `games` alone and no per-month copy exists, so the 304'd
+  // month's games would silently vanish from the count. Fetch those months in full.
+  if (results.some((r) => r.games === null) && results.some((r) => r.games !== null)) {
+    await Promise.all(
+      results.map(async (result, i) => {
+        if (result.games !== null) return;
+        results[i] = await fetchMonth(username, months[i]!, undefined, fetchImpl);
+      }),
+    );
+  }
+
   const stamps: LastModified = {};
   const games: ApiGame[] = [];
   let unchanged = true;
