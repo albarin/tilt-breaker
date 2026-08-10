@@ -189,10 +189,11 @@ export function classifyClick(target: EventTarget | null): ClickTarget {
 }
 
 /**
- * The rematch buttons currently on screen, so they can be hidden.
+ * The rematch buttons currently on screen, so they can be greyed out.
  *
- * Cancelling the click is not enough: seeing the button already fires the impulse even
- * when it does nothing. Absent beats told-no.
+ * Cancelling the click is not enough on its own: a button that looks ready and then does
+ * nothing reads as the page being broken. Greying it says the refusal was deliberate
+ * before it is reached for.
  */
 export function findRematchButtons(root: ParentNode): Element[] {
   return Array.from(root.querySelectorAll(`${SEL.gameOverShell} button`)).filter(

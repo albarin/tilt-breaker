@@ -24,7 +24,7 @@ A mandatory gap between games. Fifteen minutes by default, counted from your las
 
 A stop after a losing streak. Three losses in a row in one game type locks it for an hour. That is usually the stretch where the rating actually goes.
 
-No rematches. The rematch button is hidden always, quota or no quota. It is the button that turns one game into five before you have decided to play them, and walking back to the lobby takes a few seconds that are the decision itself.
+No rematches. The rematch button is blocked always, quota or no quota. It is the button that turns one game into five before you have decided to play them, and walking back to the lobby takes a few seconds that are the decision itself.
 
 HOW IT COUNTS
 
@@ -71,7 +71,7 @@ Tilt Breaker limits how many games the user plays on chess.com per day. Everythi
 ### storage
 
 ```text
-Stores the user's own settings (daily limit per game type, minutes between games, losing-streak threshold, whether to hide the rematch button) and a cached count of today's games so the popup can render without re-querying. Everything stays in chrome.storage.local and is never transmitted.
+Stores the user's own settings (daily limit per game type, minutes between games, losing-streak threshold, whether to block the rematch button) and a cached count of today's games so the popup can render without re-querying. Everything stays in chrome.storage.local and is never transmitted.
 ```
 
 ### alarms

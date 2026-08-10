@@ -16,6 +16,8 @@ into your rapid.
 - **No rematches.** "Rematch" and "New N min" are always blocked, quota or no quota. Not
   a counting rule: that button chains games without you ever deciding to play them.
   Walking back to the lobby takes a few seconds, and those seconds are the decision.
+- **Everything blocked is greyed out, never hidden.** One treatment for every control it
+  refuses, so a refusal always looks like a refusal — not like the page breaking.
 - **Counting comes from chess.com's public API**, not from reading the page. That is what
   actually knows the game type and result of every game, draws included, and it picks up
   what you play on mobile too.
@@ -77,7 +79,7 @@ Four things, in the settings page:
 | Games per day, per game type             | 8 bullet, 6 blitz, 3 rapid (blank for no limit, `0` for none at all) |
 | Minutes between games                    | 15 (`0` switches it off)                                             |
 | Losses in a row before a game type locks | 3                                                                    |
-| Hide the rematch button                  | on                                                                   |
+| Block the rematch button                 | on                                                                   |
 
 Two things you cannot: quotas reset at **midnight**, and a losing streak locks that game
 type for **60 minutes**. Both are fixed so there is one less dial to turn on a bad night.

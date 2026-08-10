@@ -176,7 +176,7 @@
           checked={settings.blockRematch}
           onchange={(e) => save({ blockRematch: e.currentTarget.checked })}
         />
-        <span>Hide the rematch button</span>
+        <span>Block the rematch button</span>
       </label>
     </section>
   {/if}

@@ -36,11 +36,14 @@ export type Settings = {
    */
   gapMinutes: number;
   /**
-   * Always block the rematch button, quota or no quota.
+   * Always block the rematch and next-game buttons, quota or no quota.
    *
-   * Not a counting rule but an impulse one: the rematch button is what turns one game
-   * into five without you ever deciding to. Walking back to the lobby takes a few
-   * seconds, and those seconds are the decision you were skipping.
+   * Not a counting rule but an impulse one: those buttons are what turn one game into
+   * five without you ever deciding to. Walking back to the lobby takes a few seconds, and
+   * those seconds are the decision you were skipping.
+   *
+   * Off, they still obey a block that covers every game type: the setting decides whether
+   * chaining a game is an impulse worth stopping, not whether the quota applies.
    */
   blockRematch: boolean;
 };

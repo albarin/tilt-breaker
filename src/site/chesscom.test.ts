@@ -161,9 +161,9 @@ describe('classifyClick', () => {
 });
 
 describe('findRematchButtons', () => {
-  // Hiding them is the point: seeing the button fires the impulse even when it does
-  // nothing.
-  it('finds the ones to hide', () => {
+  // Greying them is the point: a button that looks ready and then refuses reads as the
+  // page being broken rather than as a rule.
+  it('finds the ones to grey out', () => {
     render(MODAL);
     expect(
       findRematchButtons(document)
@@ -177,7 +177,7 @@ describe('findRematchButtons', () => {
     expect(findRematchButtons(document).map((b) => b.id)).not.toContain('close');
   });
 
-  it('with no modal there is nothing to hide', () => {
+  it('with no modal there is nothing to grey out', () => {
     render('<div class="board-layout-main"></div>');
     expect(findRematchButtons(document)).toEqual([]);
   });

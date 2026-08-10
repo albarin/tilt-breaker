@@ -23,19 +23,22 @@ const STATUS_REFRESH_MS = 15_000;
  * after this settle time does the presence or absence of the modal mean anything.
  */
 const SETTLE_MS = 5_000;
-/** Marks controls the stylesheet should grey out. */
+/**
+ * Marks every control this extension refuses, and the only such mark there is.
+ *
+ * One treatment for all of them: greyed out and still there. Hiding was tried for the
+ * rematch button on the grounds that absent beats told-no, but two treatments meant the
+ * same refusal looked like two different things depending on which button you reached
+ * for — and a button that vanishes from a panel you are still using reads as the page
+ * breaking rather than as a rule. Greyed out says who did it and why.
+ */
 const BLOCKED_ATTR = 'data-tilt-breaker-blocked';
-/** Marks what should not even be visible. */
-const HIDDEN_ATTR = 'data-tilt-breaker-hidden';
 
 const CSS = `
   [${BLOCKED_ATTR}] {
     opacity: 0.4 !important;
     filter: grayscale(1) !important;
     cursor: not-allowed !important;
-  }
-  [${HIDDEN_ATTR}] {
-    display: none !important;
   }
 `;
 
@@ -187,7 +190,7 @@ export default defineContentScript({
       }
     }
 
-    /** Greys out blocked options and hides rematch. The click interceptor is the real
+    /** Greys out everything currently refused. The click interceptor is the real
      * enforcement; this only stops the UI from looking usable when it is not. */
     function paint(): void {
       const grey = (selector: string, typeOf: (el: Element) => GameType | null) => {
@@ -198,10 +201,11 @@ export default defineContentScript({
       grey(SEL.timeSelectorOption, gameTypeOfOption);
       grey(SEL.quickPlay, (el) => gameTypeFromQuickPlay(el.getAttribute('href')));
 
-      const blanket = blanketBlock();
+      // Refused either by the rematch rule or by a block that covers every game type —
+      // the same two cases the click interceptor answers, painted the same way.
+      const rematchRefused = blockRematch || blanketBlock() !== null;
       for (const button of findRematchButtons(document)) {
-        button.toggleAttribute(HIDDEN_ATTR, blockRematch);
-        button.toggleAttribute(BLOCKED_ATTR, !blockRematch && blanket !== null);
+        button.toggleAttribute(BLOCKED_ATTR, rematchRefused);
       }
     }
 
