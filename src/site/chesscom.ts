@@ -13,6 +13,7 @@
  * `cc-icon-glyph_75e61c9`. Never select on a hashed `cc-*`.
  */
 
+import { parseGameId } from '../core/games';
 import { classify, gameTypeFromLabel } from '../core/gametype';
 import type { GameType } from '../core/types';
 
@@ -63,11 +64,12 @@ export const SEL = {
 /**
  * The id of the game being played, from the URL.
  *
- * Two shapes exist for the same game: `/game/172719499530` while you play it, and
- * `/game/live/172348397066` in the archive. `/game/daily/…` is correspondence and stays out.
+ * The same parser that reads ids out of archive URLs: the two shapes of a game
+ * (`/game/172719499530` while you play it, `/game/live/172348397066` in the archive) are
+ * one grammar, and a second copy of it here would drift the day chess.com adds a third.
  */
 export function gameIdFromPath(pathname: string): string | null {
-  return /^\/game\/(?:live\/)?(\d+)/.exec(pathname)?.[1] ?? null;
+  return parseGameId(pathname);
 }
 
 /**

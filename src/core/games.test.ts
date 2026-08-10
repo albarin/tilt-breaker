@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gamesForDay, lastGameEnd, parseGameId, toRecord, type ApiGame } from './games';
+import { gamesForDay, lastGameEnd, parseGameId, toRecord, toRecords, type ApiGame } from './games';
 
 const ME = 'crabinloan';
 const at = (iso: string) => new Date(iso).getTime();
@@ -19,7 +19,7 @@ function apiGame(id: string, overrides: Partial<ApiGame> = {}): ApiGame {
 }
 
 const build = (apiGames: ApiGame[]) =>
-  gamesForDay({ apiGames, username: ME, dayStart: DAY_START, dayEnd: DAY_END });
+  gamesForDay({ records: toRecords(apiGames, ME), dayStart: DAY_START, dayEnd: DAY_END });
 
 describe('parseGameId', () => {
   /** Both shapes are real and come from the same game: live play and the archive. */
@@ -106,12 +106,26 @@ describe('gamesForDay', () => {
   });
 });
 
+describe('toRecords', () => {
+  /** The filtering both readings rely on, now done once instead of once each. */
+  it('keeps your live games and drops the rest', () => {
+    const theirs = apiGame('1', {
+      white: { username: 'Uno', result: 'win' },
+      black: { username: 'Otro', result: 'resigned' },
+    });
+    const correspondence = apiGame('2', { time_class: 'daily' });
+    expect(toRecords([theirs, correspondence, apiGame('3')], ME).map((r) => r.id)).toEqual(['3']);
+  });
+});
+
 describe('lastGameEnd', () => {
+  const ends = (apiGames: ApiGame[]) => lastGameEnd(toRecords(apiGames, ME));
+
   /** Deliberately unfiltered by day, so the gap between games survives midnight. */
   it('takes the latest end regardless of the day window', () => {
     const older = apiGame('1', { end_time: Math.floor(at('2026-08-07T23:00:00') / 1000) });
     const newer = apiGame('2', { end_time: Math.floor(at('2026-08-08T02:00:00') / 1000) });
-    expect(lastGameEnd([older, newer], ME)).toBe(at('2026-08-08T02:00:00'));
+    expect(ends([older, newer])).toBe(at('2026-08-08T02:00:00'));
   });
 
   it('ignores games that are not yours', () => {
@@ -119,14 +133,14 @@ describe('lastGameEnd', () => {
       white: { username: 'Uno', result: 'win' },
       black: { username: 'Otro', result: 'resigned' },
     });
-    expect(lastGameEnd([theirs], ME)).toBeNull();
+    expect(ends([theirs])).toBeNull();
   });
 
   it('ignores correspondence', () => {
-    expect(lastGameEnd([apiGame('1', { time_class: 'daily' })], ME)).toBeNull();
+    expect(ends([apiGame('1', { time_class: 'daily' })])).toBeNull();
   });
 
   it('is null with nothing to look at', () => {
-    expect(lastGameEnd([], ME)).toBeNull();
+    expect(ends([])).toBeNull();
   });
 });

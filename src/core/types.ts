@@ -12,8 +12,7 @@ export type GameResult = 'win' | 'loss' | 'draw';
 export type GameRecord = {
   id: string;
   gameType: GameType;
-  /** Epoch ms. Approximated as `endedAt`: the archive carries no start time. */
-  startedAt: number;
+  /** Epoch ms. The archive carries no start time for live games, and nothing needs one. */
   endedAt: number;
   result: GameResult;
 };

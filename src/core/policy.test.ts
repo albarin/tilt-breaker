@@ -17,7 +17,7 @@ const NOON = at('2026-08-08T12:00:00');
 let nextId = 0;
 
 function game(gameType: GameType, result: GameResult, endedAt: number): GameRecord {
-  return { id: `g${nextId++}`, gameType, startedAt: endedAt, endedAt, result };
+  return { id: `g${nextId++}`, gameType, endedAt, result };
 }
 
 function stateWith(games: GameRecord[]): DayState {

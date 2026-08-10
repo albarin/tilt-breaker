@@ -54,33 +54,43 @@ export function toRecord(game: ApiGame, username: string): GameRecord | null {
         : null;
   if (side === null) return null; // not one of your games
 
-  const endedAt = game.end_time * 1000;
   return {
     id,
     gameType: game.time_class,
-    // The archive has no start time for live games. Streaks are ordered by end time
-    // anyway, so the approximation feeds into no decision.
-    startedAt: endedAt,
-    endedAt,
+    // The only place the archive's seconds become milliseconds. Everything downstream
+    // reads `endedAt` and never touches `end_time` again.
+    endedAt: game.end_time * 1000,
     result: resultFrom(side.result),
   };
 }
 
+/**
+ * Your games out of a raw archive, converted once.
+ *
+ * The archive runs to hundreds of games mid-month and both readings below need the same
+ * work done to it, so it is done once and the results are shared.
+ */
+export function toRecords(apiGames: ApiGame[], username: string): GameRecord[] {
+  const records: GameRecord[] = [];
+  for (const apiGame of apiGames) {
+    const record = toRecord(apiGame, username);
+    if (record !== null) records.push(record);
+  }
+  return records;
+}
+
 /** Your games for the day, keyed by id so re-reading the archive never double-counts. */
 export function gamesForDay(input: {
-  apiGames: ApiGame[];
-  username: string;
+  records: GameRecord[];
   dayStart: number;
   dayEnd: number;
 }): Record<string, GameRecord> {
-  const { apiGames, username, dayStart, dayEnd } = input;
+  const { records, dayStart, dayEnd } = input;
   const games: Record<string, GameRecord> = {};
 
-  for (const apiGame of apiGames) {
-    const endedAt = apiGame.end_time * 1000;
-    if (endedAt < dayStart || endedAt >= dayEnd) continue;
-    const record = toRecord(apiGame, username);
-    if (record !== null) games[record.id] = record;
+  for (const record of records) {
+    if (record.endedAt < dayStart || record.endedAt >= dayEnd) continue;
+    games[record.id] = record;
   }
   return games;
 }
@@ -91,12 +101,10 @@ export function gamesForDay(input: {
  * The gap between games has to hold across midnight, so this deliberately does not filter
  * by day the way `gamesForDay` does.
  */
-export function lastGameEnd(apiGames: ApiGame[], username: string): number | null {
+export function lastGameEnd(records: GameRecord[]): number | null {
   let last: number | null = null;
-  for (const apiGame of apiGames) {
-    if (toRecord(apiGame, username) === null) continue;
-    const endedAt = apiGame.end_time * 1000;
-    if (last === null || endedAt > last) last = endedAt;
+  for (const record of records) {
+    if (last === null || record.endedAt > last) last = record.endedAt;
   }
   return last;
 }

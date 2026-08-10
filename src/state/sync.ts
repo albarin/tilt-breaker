@@ -1,6 +1,6 @@
 import { fetchGamesCovering, type Fetcher } from '../api/chesscom-api';
 import { dayEndMs, dayKeyOf, dayStartMs } from '../core/day';
-import { gamesForDay, lastGameEnd } from '../core/games';
+import { gamesForDay, lastGameEnd, toRecords } from '../core/games';
 import { DAY_RESET_HOUR, type DayState } from '../core/types';
 import {
   detectedUsernameItem,
@@ -38,9 +38,15 @@ export async function syncDay(input: {
 }): Promise<SyncOutcome> {
   const { now, force = false, fetchImpl } = input;
   const dayKey = dayKeyOf(now, DAY_RESET_HOUR);
-  // The snapshot is keyed by account: after a sign-in change nothing stored may stand,
-  // stamps included, or a 304 would keep counting the previous account's games.
-  const username = await detectedUsernameItem.getValue();
+  // Independent keys, so they are read together: this runs on every message a chess.com
+  // tab sends, and three sequential reads are three storage round trips before any
+  // decision is made. The snapshot is keyed by account — after a sign-in change nothing
+  // stored may stand, stamps included, or a 304 would keep counting the old account.
+  const [username, lastStoredEnd] = await Promise.all([
+    detectedUsernameItem.getValue(),
+    lastGameEndItem.getValue(),
+  ]);
+  let lastEnd = lastStoredEnd;
   const stored = (await getSnapshot(now, username)) ?? {
     dayKey,
     username: username ?? '',
@@ -53,7 +59,6 @@ export async function syncDay(input: {
     games: snapshot.games,
     ...(lastEnd === null ? {} : { lastGameEndedAt: lastEnd }),
   });
-  let lastEnd = await lastGameEndItem.getValue();
 
   if (username === null) {
     return { ok: false, reason: 'no-account', state: asState(stored, lastEnd) };
@@ -74,9 +79,11 @@ export async function syncDay(input: {
       ...(fetchImpl === undefined ? {} : { fetchImpl }),
     });
 
+    // Converted once and read twice: the day slice below, and the latest end here.
+    const records = archive.unchanged ? [] : toRecords(archive.games, username);
+
     // Taken from the whole archive, not the day slice: the gap has to survive midnight.
-    if (!archive.unchanged)
-      lastEnd = await rememberLastGameEnd(lastGameEnd(archive.games, username));
+    if (!archive.unchanged) lastEnd = await rememberLastGameEnd(lastGameEnd(records));
 
     const snapshot = await serialize(async () => {
       const next: DaySnapshot = {
@@ -84,9 +91,7 @@ export async function syncDay(input: {
         username,
         // A 304 on every month means you have not played since last time, so the games we
         // already had still stand.
-        games: archive.unchanged
-          ? stored.games
-          : gamesForDay({ apiGames: archive.games, username, dayStart, dayEnd }),
+        games: archive.unchanged ? stored.games : gamesForDay({ records, dayStart, dayEnd }),
         fetchedAt: now,
         lastModified: { ...stored.lastModified, ...archive.lastModified },
       };
