@@ -1,7 +1,7 @@
 import type { Decision } from '../core/policy';
 import { GAME_TYPES, type GameType } from '../core/types';
 import { sendMessage } from '../messaging';
-import { watchSettings } from '../state/storage';
+import { lastGameEndItem, watchSettings } from '../state/storage';
 import {
   SEL,
   classifyClick,
@@ -56,6 +56,8 @@ export default defineContentScript({
     let seenLive = false;
     const reported = new Set<string>();
     const reviewing = new Set<string>();
+    /** A report is in flight; without this every tick would send another. */
+    let reporting = false;
     let decisions: Partial<Record<GameType, Decision>> = {};
     let blockRematch = false;
 
@@ -63,8 +65,10 @@ export default defineContentScript({
     injectStyle();
 
     // Capture phase: this runs before chess.com's own handlers no matter how its UI is
-    // wired, so the click can be cancelled without depending on their setup.
-    document.addEventListener('click', onClickCapture, true);
+    // wired, so the click can be cancelled without depending on their setup. Registered
+    // through `ctx` so an extension reload takes it down with everything else — a stray
+    // listener would outlive the intervals and keep blocking on frozen decisions.
+    ctx.addEventListener(document, 'click', onClickCapture, { capture: true });
 
     void refreshStatus();
     ctx.setInterval(() => void refreshStatus(), STATUS_REFRESH_MS);
@@ -72,11 +76,17 @@ export default defineContentScript({
     tick();
 
     /*
-     * Only the settings, not every storage write. Reacting to all of them meant reacting
-     * to the day snapshot that our own request had just caused, costing an extra round
-     * trip after every sync.
+     * Two keys, not every storage write. Reacting to all of them meant reacting to the day
+     * snapshot that our own request had just caused, costing an extra round trip after
+     * every sync.
+     *
+     * `lastGameEnd` is what makes a second tab honest: a game finishing in one tab starts
+     * a gap the others know nothing about until their next poll, which is long enough to
+     * click "Start Game" in a lobby that was already open. It only changes when a game
+     * actually ends, so there is no loop to fall into.
      */
     watchSettings(() => void refreshStatus(true));
+    lastGameEndItem.watch(() => void refreshStatus(true));
 
     function injectStyle(): void {
       const style = document.createElement('style');
@@ -84,7 +94,8 @@ export default defineContentScript({
       (document.head ?? document.documentElement).append(style);
     }
 
-    async function refreshStatus(force = false, gameEnded = false): Promise<void> {
+    /** `false` if the background could not be reached, so the caller can try again. */
+    async function refreshStatus(force = false, gameEnded = false): Promise<boolean> {
       try {
         // The signed-in account rides along on every request: that is how the background
         // knows which user to count without anyone typing it into settings.
@@ -95,11 +106,13 @@ export default defineContentScript({
         });
         decisions = status.decisions;
         blockRematch = status.blockRematch;
+        return true;
       } catch (error) {
         // The service worker may still be starting. When in doubt, block nothing.
         log('could not read status', error);
         decisions = {};
         blockRematch = false;
+        return false;
       }
     }
 
@@ -218,10 +231,14 @@ export default defineContentScript({
      * seen live first: settled, on screen, and modal-free. Sampling on the first tick
      * instead would race the renderer, and a review misread as an ending starts a gap
      * that `rememberLastGameEnd` never walks back.
+     *
+     * The report is only marked delivered once the background has answered. A dropped
+     * message — a service worker that died mid-send — would otherwise leave the gap
+     * measured from the previous game, the very hole this exists to close.
      */
     function watchGameEnd(): void {
       const id = gameIdFromPath(location.pathname);
-      if (id === null || reviewing.has(id) || reported.has(id)) return;
+      if (id === null || reviewing.has(id) || reported.has(id) || reporting) return;
 
       if (watchedGame !== id) {
         watchedGame = id;
@@ -242,9 +259,13 @@ export default defineContentScript({
         return;
       }
 
-      reported.add(id);
-      log('game finished:', id);
-      void refreshStatus(true, true);
+      reporting = true;
+      void refreshStatus(true, true).then((delivered) => {
+        reporting = false;
+        if (!delivered) return; // the next tick tries again
+        reported.add(id);
+        log('game finished:', id);
+      });
     }
   },
 });
