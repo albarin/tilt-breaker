@@ -17,6 +17,12 @@ import { REMATCH_COPY, copyFor, createOverlay, type OverlayCopy } from '../site/
 
 const POLL_MS = 400;
 const STATUS_REFRESH_MS = 15_000;
+/**
+ * How long a game page gets to finish rendering. The script runs at document_start, so
+ * early ticks see an empty document no matter what the page will end up showing; only
+ * after this settle time does the presence or absence of the modal mean anything.
+ */
+const SETTLE_MS = 5_000;
 /** Marks controls the stylesheet should grey out. */
 const BLOCKED_ATTR = 'data-tilt-breaker-blocked';
 /** Marks what should not even be visible. */
@@ -49,6 +55,9 @@ export default defineContentScript({
     let lastPath = '';
     /** The game on screen, and whether we have already reported it finishing. */
     let watchedGame: string | null = null;
+    let watchStartedAt = 0;
+    /** The watched game has been seen settled and modal-free: it was live, not a replay. */
+    let seenLive = false;
     const reported = new Set<string>();
     const reviewing = new Set<string>();
     let decisions: Partial<Record<GameType, Decision>> = {};
@@ -184,8 +193,11 @@ export default defineContentScript({
      * straight away. Short games hid this, because the previous one was recent enough that
      * the stale gap happened to still be running.
      *
-     * A modal already on screen when we arrive means a finished game opened to review, not
-     * one being played.
+     * A finished game opened to review also shows the modal — but it shows it as soon as
+     * the page renders. So the modal only counts as an ending after the game has been
+     * seen live first: settled, on screen, and modal-free. Sampling on the first tick
+     * instead would race the renderer, and a review misread as an ending starts a gap
+     * that `rememberLastGameEnd` never walks back.
      */
     function watchGameEnd(): void {
       const id = gameIdFromPath(location.pathname);
@@ -193,15 +205,26 @@ export default defineContentScript({
 
       if (watchedGame !== id) {
         watchedGame = id;
-        if (hasGameOverModal(document)) reviewing.add(id);
+        watchStartedAt = Date.now();
+        seenLive = false;
         return;
       }
 
-      if (hasGameOverModal(document)) {
-        reported.add(id);
-        log('game finished:', id);
-        void refreshStatus(true, true);
+      if (Date.now() - watchStartedAt < SETTLE_MS) return;
+
+      if (!hasGameOverModal(document)) {
+        seenLive = true;
+        return;
       }
+
+      if (!seenLive) {
+        reviewing.add(id);
+        return;
+      }
+
+      reported.add(id);
+      log('game finished:', id);
+      void refreshStatus(true, true);
     }
   },
 });
