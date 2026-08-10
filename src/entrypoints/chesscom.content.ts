@@ -13,7 +13,7 @@ import {
   readOwnUsername,
   readSelectedGameType,
 } from '../site/chesscom';
-import { REMATCH_COPY, copyFor, createOverlay, type OverlayCopy } from '../site/overlay';
+import { copyFor, createOverlay, rematchCopy, type OverlayCopy } from '../site/overlay';
 
 const POLL_MS = 400;
 const STATUS_REFRESH_MS = 15_000;
@@ -173,13 +173,12 @@ export default defineContentScript({
         case 'startGame':
           return blockIfSpent(event, readSelectedGameType(document));
 
-        // The impulse rule first; with its toggle off, the modal is still no side door
-        // around a block that covers every game type.
+        // Refused by the rematch rule, by a block covering every game type, or by both —
+        // `rematchCopy` owns which of the two gets to explain itself.
         case 'rematch': {
-          if (blockRematch) return block(event, REMATCH_COPY, 'rematch');
           const blanket = blanketBlock();
-          if (blanket !== null)
-            block(event, copyFor(blanket.decision, blanket.gameType, Date.now()), blanket.decision);
+          const copy = rematchCopy({ blockRematch, blanket, now: Date.now() });
+          if (copy !== null) block(event, copy, blanket?.decision ?? 'rematch');
           return;
         }
 

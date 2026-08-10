@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import type { Decision } from '../core/policy';
-import { OVERLAY_CSS, REMATCH_COPY, copyFor, createOverlay } from './overlay';
+import { OVERLAY_CSS, REMATCH_COPY, copyFor, createOverlay, rematchCopy } from './overlay';
 
 const at = (iso: string) => new Date(iso).getTime();
 const NOON = at('2026-08-08T12:00:00');
@@ -60,6 +60,34 @@ describe('REMATCH_COPY', () => {
   it('explains itself without mentioning any limit', () => {
     expect(REMATCH_COPY.title).toBeTruthy();
     expect(REMATCH_COPY.body).not.toMatch(/quota|limit/i);
+  });
+});
+
+describe('rematchCopy', () => {
+  const GAP: Decision = { allow: false, reason: 'gap', until: at('2026-08-08T12:20:00') };
+  const blanket = { decision: GAP, gameType: 'blitz' as const };
+
+  it('says nothing when neither rule refuses', () => {
+    expect(rematchCopy({ blockRematch: false, blanket: null, now: NOON })).toBeNull();
+  });
+
+  it('sends you to the lobby when the lobby would take you', () => {
+    expect(rematchCopy({ blockRematch: true, blanket: null, now: NOON })).toEqual(REMATCH_COPY);
+  });
+
+  /**
+   * The bug this exists to stop: "go back to the lobby" while the gap is running sends
+   * you somewhere that refuses you too, and buries the only useful fact — the time.
+   */
+  it('a block covering every type outranks the rematch rule', () => {
+    const copy = rematchCopy({ blockRematch: true, blanket, now: NOON })!;
+    expect(copy.body).not.toMatch(/lobby/i);
+    expect(copy.body).toContain('12:20h');
+  });
+
+  it('and still explains itself with the rematch rule switched off', () => {
+    const copy = rematchCopy({ blockRematch: false, blanket, now: NOON })!;
+    expect(copy.body).toContain('12:20h');
   });
 });
 

@@ -49,6 +49,27 @@ export const REMATCH_COPY: OverlayCopy = {
   body: 'This is the button that turns one game into five. If you really want another, go back to the lobby.',
 };
 
+/**
+ * What to show when a button that chains another game is clicked, or `null` to let the
+ * click through.
+ *
+ * A block covering every game type is reported ahead of the rematch rule, which reads the
+ * wrong way round until you see what the copy says. "Go back to the lobby" is only true
+ * advice while the lobby would let you in: inside the gap, or with every type spent, it
+ * sends you to a door that is shut as well and withholds the one thing worth knowing —
+ * when it opens. With one type spent but another free the lobby really is the way, and
+ * that is the case this still answers.
+ */
+export function rematchCopy(input: {
+  blockRematch: boolean;
+  blanket: { decision: Decision; gameType: GameType } | null;
+  now: number;
+}): OverlayCopy | null {
+  const { blockRematch, blanket, now } = input;
+  if (blanket !== null) return copyFor(blanket.decision, blanket.gameType, now);
+  return blockRematch ? REMATCH_COPY : null;
+}
+
 export const OVERLAY_CSS = `
   :host { all: initial; }
 
