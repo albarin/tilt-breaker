@@ -69,8 +69,18 @@ export function serialize<T>(task: () => Promise<T>): Promise<T> {
 export async function getSettings(): Promise<Settings> {
   // `fallback` does not fill in missing keys *inside* the object, so merge by hand: if we
   // add a setting later, existing installs inherit it instead of getting `undefined`.
+  //
+  // `limits` is merged per key like `tilt`, not taken wholesale. A game type added in a
+  // later version would otherwise read as `undefined` on existing installs, and an
+  // undefined limit is neither "no limit" nor a number: it blocks the type outright and
+  // renders as "0 of undefined". A deliberate `null` still means no limit and survives.
   const stored = await settingsItem.getValue();
-  return { ...DEFAULT_SETTINGS, ...stored, tilt: { ...DEFAULT_SETTINGS.tilt, ...stored?.tilt } };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...stored,
+    limits: { ...DEFAULT_SETTINGS.limits, ...stored?.limits },
+    tilt: { ...DEFAULT_SETTINGS.tilt, ...stored?.tilt },
+  };
 }
 
 export function setSettings(patch: Partial<Settings>): Promise<Settings> {

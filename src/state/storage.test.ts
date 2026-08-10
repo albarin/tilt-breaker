@@ -32,6 +32,21 @@ describe('settings', () => {
     expect(settings.blockRematch).toBe(true);
   });
 
+  /**
+   * A game type the stored settings predate must not come back `undefined`: that is
+   * neither a number nor "no limit", and it blocks the type outright.
+   */
+  it('fills in a game type missing from the stored limits', async () => {
+    await fakeBrowser.storage.local.set({ settings: { limits: { bullet: 1 } } });
+    const settings = await getSettings();
+    expect(settings.limits).toEqual({ bullet: 1, blitz: 6, rapid: 3 });
+  });
+
+  it('a deliberate no-limit survives that merge', async () => {
+    await setSettings({ limits: { bullet: 8, blitz: 6, rapid: null } });
+    expect((await getSettings()).limits.rapid).toBeNull();
+  });
+
   // Every read-modify-write here is serialised, so concurrent ones cannot lose each other.
   it('concurrent changes do not overwrite one another', async () => {
     await Promise.all([
