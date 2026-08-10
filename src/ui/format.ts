@@ -1,4 +1,4 @@
-import type { GameTypeSummary } from '../core/policy';
+import { isOff, type GameTypeSummary } from '../core/policy';
 import type { GameType } from '../core/types';
 
 /** Display names, as chess.com writes them. */
@@ -28,8 +28,7 @@ export function blockReason(row: GameTypeSummary): string | null {
   if (decision.allow) return null;
   if (decision.reason === 'tilt') return `resting until ${formatTime(decision.until)}`;
   if (decision.reason === 'gap') return `next game at ${formatTime(decision.until)}`;
-  // A quota of 0 was never spent: it is switched off from the start.
-  return limit === 0 ? 'off for today' : 'done for today';
+  return isOff(limit) ? 'off for today' : 'done for today';
 }
 
 /**
@@ -40,6 +39,6 @@ export function blockReason(row: GameTypeSummary): string | null {
  */
 export function usedFraction(row: GameTypeSummary): number {
   if (row.limit === null) return 0;
-  if (row.limit === 0) return 1;
+  if (isOff(row.limit)) return 1;
   return Math.min(1, row.used / row.limit);
 }

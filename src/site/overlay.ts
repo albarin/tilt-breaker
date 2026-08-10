@@ -1,4 +1,4 @@
-import type { Decision } from '../core/policy';
+import { isOff, type Decision } from '../core/policy';
 import type { GameType } from '../core/types';
 import { NAMES, formatTime } from '../ui/format';
 
@@ -20,8 +20,7 @@ export function copyFor(decision: Decision, gameType: GameType, now: number): Ov
   // No other game type is ever mentioned. Saying "rapid is still available" mid-impulse
   // is an invitation to keep playing, not a consolation.
   if (decision.reason === 'quota') {
-    // A quota of 0 is not "spent", it is switched off. "0 of 0" would read as a bug.
-    if (decision.limit === 0) {
+    if (isOff(decision.limit)) {
       return {
         title: `No ${NAMES[gameType].toLowerCase()} today`,
         body: 'You have it set to zero. Come back tomorrow.',

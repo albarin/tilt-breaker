@@ -9,6 +9,17 @@ export type Decision =
 /** A block with a time attached, which is every one of them except the quota. */
 export type TimedBlock = Extract<Decision, { until: number }>;
 
+/**
+ * Is that limit switched off rather than spent?
+ *
+ * Zero and "all used up" are different states wearing the same numbers, and every surface
+ * that renders a quota has to tell them apart — "0 of 0 played" reads as a bug. Stated
+ * here so a new surface inherits the distinction instead of rediscovering it.
+ */
+export function isOff(limit: number | null): boolean {
+  return limit === 0;
+}
+
 /** Games of one game type, oldest first. */
 function gamesOf(state: DayState, gameType: GameType) {
   return Object.values(state.games)
@@ -88,13 +99,22 @@ export function gapBlock(
   return now < until ? { allow: false, reason: 'gap', until } : null;
 }
 
+/**
+ * Which block applies to one game type, and which of them wins.
+ *
+ * The single authority on that ordering: the overlay enforces what this returns and the
+ * popup's rows describe it, so a precedence that lived in two places would let the popup
+ * call a game type playable while the click is refused.
+ */
 export function evaluate(input: {
   state: DayState;
   settings: Settings;
   gameType: GameType;
   now: number;
+  /** Off for per-type rows: the gap blocks every type at once and is reported once. */
+  includeGap?: boolean;
 }): Decision {
-  const { state, settings, gameType, now } = input;
+  const { state, settings, gameType, now, includeGap = true } = input;
 
   // Quota comes first because it is not a wait: the day is over, and saying "wait 15
   // minutes" would be a lie since waiting unblocks nothing.
@@ -105,7 +125,7 @@ export function evaluate(input: {
   // actually play again. Otherwise you would be told 21:30, come back, and be told 21:34.
   const timed: TimedBlock[] = [
     tiltBlock(state, settings, gameType, now),
-    gapBlock(state, settings, now),
+    includeGap ? gapBlock(state, settings, now) : null,
   ].filter((d) => d !== null);
   if (timed.length > 0) return timed.reduce((a, b) => (b.until > a.until ? b : a));
 
@@ -125,7 +145,8 @@ export type GameTypeSummary = {
  *
  * The row decision deliberately leaves the gap out: it blocks every type at once, so
  * repeating it on all three rows would say the same thing three times. The popup shows it
- * once, from `gapBlock`.
+ * once, from `gapBlock`. Everything else about which block wins comes from `evaluate`, so
+ * the rows cannot drift from what the click interceptor enforces.
  */
 export function summarize(state: DayState, settings: Settings, now: number): GameTypeSummary[] {
   return GAME_TYPES.map((gameType) => ({
@@ -133,7 +154,6 @@ export function summarize(state: DayState, settings: Settings, now: number): Gam
     used: countOf(state, gameType),
     limit: settings.limits[gameType],
     lossStreak: lossStreakOf(state, gameType).losses,
-    decision: quotaBlock(state, settings, gameType) ??
-      tiltBlock(state, settings, gameType, now) ?? { allow: true },
+    decision: evaluate({ state, settings, gameType, now, includeGap: false }),
   }));
 }
