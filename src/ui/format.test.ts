@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameTypeSummary } from '../core/policy';
+import { catalogue } from '../test-setup';
 import { blockReason, formatTime, usedFraction } from './format';
 
 const at = (iso: string) => new Date(iso).getTime();
@@ -9,6 +10,20 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.resetModules();
 });
+
+/**
+ * `formatTime` as it would run for a user of that language, reading that catalogue.
+ *
+ * The module caches its formatter on first use, so this reloads it rather than
+ * reassigning the language under a formatter that has already been built.
+ */
+async function speaking(language: string, locale: string) {
+  vi.resetModules();
+  vi.spyOn(browser.i18n, 'getUILanguage').mockReturnValue(language);
+  vi.spyOn(browser.i18n, 'getMessage').mockImplementation(await catalogue(locale));
+  const { formatTime: reloaded } = await import('./format');
+  return reloaded;
+}
 
 function row(overrides: Partial<GameTypeSummary>): GameTypeSummary {
   return {
@@ -30,17 +45,11 @@ describe('formatTime', () => {
     expect(formatTime(at('2026-08-08T21:05:00'))).toBe('21:05');
   });
 
-  /**
-   * The clock shape is not ours to choose. A 12-hour locale must get a 12-hour time, and
-   * the module caches its formatter on first use — so this reloads it rather than
-   * reassigning the language under a formatter that has already been built.
-   */
+  // The clock shape is not ours to choose: a 12-hour locale must get a 12-hour time.
   it('follows a 12-hour locale', async () => {
-    vi.resetModules();
-    vi.spyOn(browser.i18n, 'getUILanguage').mockReturnValue('en-US');
-    const { formatTime: reloaded } = await import('./format');
+    const formatTime = await speaking('en-US', 'en');
 
-    expect(reloaded(at('2026-08-08T21:05:00'))).toMatch(/09:05\s?PM/i);
+    expect(formatTime(at('2026-08-08T21:05:00'))).toMatch(/09:05\s?PM/i);
   });
 });
 

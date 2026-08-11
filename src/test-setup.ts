@@ -13,27 +13,40 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 export const TEST_UI_LANGUAGE = 'en-GB';
 
 /**
+ * A `getMessage` reading one of the shipped catalogues.
+ *
+ * Compiled here by the same code the build runs, which is the point: the tests assert the
+ * strings the extension actually ships, not a second copy of them that could drift.
+ *
+ * It answers `''` for an unknown key, exactly as the browser does rather than more
+ * helpfully — a typo'd key is caught by the generated types at compile time, so there is
+ * nothing to gain here by being stricter than the platform.
+ *
+ * Exported because the suite runs in English, and a few things — a suffix one language
+ * adds and another does not — only exist to be got wrong in a translated catalogue.
+ */
+export async function catalogue(
+  locale: string,
+): Promise<(key: string, substitutions?: string | string[]) => string> {
+  const messages = generateChromeMessages(await parseMessagesFile(`src/locales/${locale}.yml`));
+
+  return (key, substitutions) => {
+    const message = messages[key]?.message;
+    if (message === undefined) return '';
+    const subs = substitutions === undefined ? [] : [substitutions].flat();
+    return message.replace(/\$(\d)/g, (whole, digit: string) => subs[Number(digit) - 1] ?? whole);
+  };
+}
+
+/**
  * Gives the fake browser the `i18n` the real one has.
  *
  * `fakeBrowser` implements no `i18n` whatsoever, so every string in the app would throw
- * on the way to being rendered. The English catalogue is compiled here by the same code
- * the build runs, which is the point: the tests assert the strings the extension actually
- * ships, not a second copy of them that could drift.
- *
- * `getMessage` answers `''` for an unknown key, exactly as the browser does rather than
- * more helpfully — a typo'd key is caught by the generated types at compile time, so
- * there is nothing to gain here by being stricter than the platform.
+ * on the way to being rendered.
  */
 async function installI18n(): Promise<void> {
-  const messages = generateChromeMessages(await parseMessagesFile('src/locales/en.yml'));
-
   const i18n = {
-    getMessage: (key: string, substitutions?: string | string[]): string => {
-      const message = messages[key]?.message;
-      if (message === undefined) return '';
-      const subs = substitutions === undefined ? [] : [substitutions].flat();
-      return message.replace(/\$(\d)/g, (whole, digit: string) => subs[Number(digit) - 1] ?? whole);
-    },
+    getMessage: await catalogue('en'),
     getUILanguage: () => TEST_UI_LANGUAGE,
   };
 
