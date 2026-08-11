@@ -69,11 +69,14 @@ profile link lives in the sidebar while your opponent's sits around the board, a
 what tells them apart — and quotas apply from the first moment.
 
 To check the count adds up, open the popup: it already shows what you have played today
-without waiting or playing, because it comes from the API.
+without waiting or playing, because it comes from the API. Beside each count it shows how
+those games went — wins, draws, losses — and what they did to your rating, which is the
+other half of the answer to how the day is going.
 
 ## What you can change
 
-Four things, in the settings page:
+Four things, in the settings page, which opens in the browser's own dialog rather than a
+tab:
 
 | Setting                                  | Default                                                              |
 | ---------------------------------------- | -------------------------------------------------------------------- |
@@ -202,9 +205,10 @@ the sources in `src`.
 ## Checks
 
 ```sh
-pnpm test          # 180 tests (vitest + happy-dom)
+pnpm test          # 209 tests (vitest + happy-dom)
 pnpm check         # types (svelte-check)
 pnpm smoke         # builds, then drives the settings page in a real Chrome
+pnpm screenshots   # builds, then re-renders the store screenshots from it
 pnpm format        # prettier, configured to match what the code already used
 pnpm format:check  # the same, read-only
 pnpm icons         # regenerates public/icon/*.png with no external dependencies
@@ -215,4 +219,18 @@ reactive state — a proxy — to `browser.storage`, which structured-clones and
 one. Every write rejected in the browser while the types checked out and the suite stayed
 green, since the storage double kept whatever it was handed. The double now clones the way
 the browser does (`src/test-setup.ts`), which is what the unit tests rely on; the smoke
-check is what confirms that rule still matches a real browser. It needs Chrome installed.
+check is what confirms that rule still matches a real browser.
+
+It has since taken on the other two things only a browser can settle. That the settings
+page still opens in the browser's dialog and not in a tab — `options_ui` is assembled from
+the entrypoint, so the same key set in `wxt.config.ts` reads as deliberate and changes
+nothing. And that the form still fits that dialog, which is 640px tall counting its own
+title bar: the page is measured after rendering, in every language shipped, because what
+decides its height is the text, and the translations run longer than the English.
+
+`pnpm screenshots` re-renders `store/screenshots/1-popup.jpg` and `3-settings.jpg` from the
+built bundle, which is the only way to capture either — a popup is not a page you can open,
+and the settings live inside a dialog. Both went stale unnoticed once already. The third
+image is the overlay running on the real site and is not made by a script.
+
+Both need Chrome installed; the screenshots also need the network, for the avatar.
