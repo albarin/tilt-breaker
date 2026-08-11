@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameTypeSummary } from '../core/policy';
 import { catalogue } from '../test-setup';
-import { blockReason, formatTime, usedFraction } from './format';
+import { blockReason, formatRatingDelta, formatTime, usedFraction } from './format';
 
 const at = (iso: string) => new Date(iso).getTime();
 
@@ -70,6 +70,27 @@ describe('formatTime', () => {
     const formatTime = await speaking('es-MX', 'es');
 
     expect(formatTime(at('2026-08-08T21:05:00'))).toBe('09:05 p.m.');
+  });
+});
+
+describe('formatRatingDelta', () => {
+  it('carries the sign, because the number alone does not say which way', () => {
+    expect(formatRatingDelta(12)).toBe('+12');
+    expect(formatRatingDelta(-7)).toMatch(/^-7$/u);
+  });
+
+  /** "+0" reads like a gain too small to show. A day that ended level ended level. */
+  it('leaves a level day unsigned', () => {
+    expect(formatRatingDelta(0)).toBe('0');
+  });
+
+  /** Same lesson as the clock: the shape of a number is the reader's, not ours. */
+  it('writes the number in the UI language', async () => {
+    vi.resetModules();
+    vi.spyOn(browser.i18n, 'getUILanguage').mockReturnValue('ar-EG');
+    const { formatRatingDelta: reloaded } = await import('./format');
+
+    expect(reloaded(12)).not.toBe('+12');
   });
 });
 

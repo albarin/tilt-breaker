@@ -3,7 +3,14 @@
   import { i18n } from '#i18n';
   import { NO_ACCOUNT_HINT, noAccountAround, watchAccount } from '../../ui/account.svelte';
   import { loadView, type View } from '../../ui/load';
-  import { COLORS, NAMES, blockReason, formatTime, usedFraction } from '../../ui/format';
+  import {
+    COLORS,
+    NAMES,
+    blockReason,
+    formatRatingDelta,
+    formatTime,
+    usedFraction,
+  } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
 
   let view = $state<View | null>(null);
@@ -88,12 +95,24 @@
             <!--
               How the games went, not just how many. Hidden at zero games: three zeroes
               say nothing the "0/N" above has not already said.
+
+              The rating rides the same line, pushed to the far edge: it is the other
+              answer to "how did today go", and on its own line it would carry more weight
+              than the record it belongs to. It is left out when a game could not be
+              measured, rather than shown short.
             -->
             {#if row.used > 0}
               <p class="tally">
                 <span class="win">{i18n.t('popup.wins', [row.tally.wins])}</span>
                 <span class="draw">{i18n.t('popup.draws', [row.tally.draws])}</span>
                 <span class="loss">{i18n.t('popup.losses', [row.tally.losses])}</span>
+                {#if row.ratingDelta !== null}
+                  <span
+                    class="rating"
+                    class:up={row.ratingDelta > 0}
+                    class:down={row.ratingDelta < 0}>{formatRatingDelta(row.ratingDelta)}</span
+                  >
+                {/if}
               </p>
             {/if}
 
@@ -236,6 +255,19 @@
   }
 
   .tally .loss {
+    color: #e0a8a2;
+  }
+
+  /* Pushed to the right edge, away from the three counts it does not belong with. */
+  .tally .rating {
+    margin-left: auto;
+  }
+
+  .tally .rating.up {
+    color: #81b64c;
+  }
+
+  .tally .rating.down {
     color: #e0a8a2;
   }
 

@@ -58,6 +58,23 @@ export function formatTime(ms: number): string {
   return format.resolvedOptions().hour12 === true ? time : i18n.t('common.time', [time]);
 }
 
+/**
+ * Built on first use for the same reasons the clock is, and from the same language: the
+ * minus sign is not the hyphen everywhere, and not every locale writes these digits.
+ */
+let signed: Intl.NumberFormat | null = null;
+
+/**
+ * A rating change, with its sign.
+ *
+ * `exceptZero` rather than `always`, so a day that ends where it started reads "0" and
+ * not "+0" — which looks like a gain rounded down to nothing.
+ */
+export function formatRatingDelta(delta: number): string {
+  signed ??= new Intl.NumberFormat(browser.i18n.getUILanguage(), { signDisplay: 'exceptZero' });
+  return signed.format(delta);
+}
+
 /** Why that game type is blocked, or `null` if it can be played. */
 export function blockReason(row: GameTypeSummary): string | null {
   const { decision, limit } = row;
