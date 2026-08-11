@@ -48,15 +48,21 @@ Not affiliated with Chess.com.
 In `store/screenshots/`, at the 1280×800 the dashboard wants. Suggested order:
 
 1. **`1-popup.jpg`** — the popup over a real chess.com lobby: today's count per game type,
-   blitz spent, and the wait until the next game. The page behind is dimmed so the popup
-   reads as the subject; nothing in the interface is faked.
+   how those games went and what they did to your rating, blitz spent, and the wait until
+   the next game. The page behind is dimmed so the popup reads as the subject; nothing in
+   the interface is faked.
 2. **`2-rematch-blocked.jpg`** — the blocking screen after a game, produced by the real
    overlay code running on a real chess.com page.
 3. **`3-settings.jpg`** — everything that can be configured, which is little on purpose.
 
-They were captured against the live site with the real markup and stylesheets, so they
-will drift if the interface changes. Worth redoing before any submission that follows a
-visual change.
+The chess.com behind the first two was captured against the live site; the popup and the
+settings page are the built bundle rendered at its own size, since neither can be opened as
+a page to capture. So they drift whenever the interface does, and `pnpm screenshots` redoes
+the first and the third from a fresh build — run it before any submission that follows a
+visual change. The second one needs a real game to end and is not made by a script.
+
+`store/backdrop-chesscom.jpg` is the live-site capture the popup is composited onto. It is
+kept out of `screenshots/` so nothing uploads it by mistake.
 
 ## Privacy practices tab
 
