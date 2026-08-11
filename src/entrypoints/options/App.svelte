@@ -203,24 +203,43 @@
     {/key}
   {/if}
 
-  {#if saveState !== 'idle'}
-    <p class="toast" class:failed={saveState === 'error'} role="status">
-      {#if saveState === 'saving'}
-        <span class="spinner" aria-hidden="true"></span>{i18n.t('options.saving')}
-      {:else if saveState === 'error'}
-        {i18n.t('options.saveFailed')}
-      {:else}
-        {i18n.t('options.saved')}
-      {/if}
-    </p>
-  {/if}
+  <!--
+    The toast sits in the layout with its space always reserved, rather than floating over
+    the corner. In the dialog the page ends where the content ends, so a floating toast
+    had nothing below the form to cover but the form: it landed on the rematch checkbox,
+    the one control that puts it on screen by being clicked.
+
+    The live region is the container, not the toast, so it is already there to announce
+    what appears inside it.
+  -->
+  <footer class="status" role="status">
+    {#if saveState !== 'idle'}
+      <p class="toast" class:failed={saveState === 'error'}>
+        {#if saveState === 'saving'}
+          <span class="spinner" aria-hidden="true"></span>{i18n.t('options.saving')}
+        {:else if saveState === 'error'}
+          {i18n.t('options.saveFailed')}
+        {:else}
+          {i18n.t('options.saved')}
+        {/if}
+      </p>
+    {/if}
+  </footer>
 </main>
 
 <style>
+  /*
+   * The spacing here is budgeted, not chosen by eye. This page opens in the browser's
+   * embedded dialog, and Chrome caps that dialog at 640px including its own title bar,
+   * so the four sections and the save toast have to end inside roughly 570px or the last
+   * of them is reachable only by scrolling something that does not look scrollable.
+   * `scripts/smoke-options.mjs` measures the built page and fails if it stops fitting,
+   * in whichever language it is built with — translations run longer than the English.
+   */
   main {
     max-width: 26rem;
     margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
+    padding: 0.9rem 1.5rem 1rem;
     background: var(--bg);
     color: var(--text);
     font-family:
@@ -228,14 +247,13 @@
       -apple-system,
       'Segoe UI',
       sans-serif;
-    min-height: 100vh;
     box-sizing: border-box;
   }
 
   .account {
-    margin: 0 0 2.25rem;
+    margin: 0 0 0.65rem;
     color: var(--muted);
-    font-size: 1.1875rem;
+    font-size: 1rem;
   }
 
   /*
@@ -263,7 +281,7 @@
   }
 
   h2 {
-    margin: 0 0 0.8rem;
+    margin: 0 0 0.35rem;
     font-size: 0.8125rem;
     font-weight: 650;
     text-transform: uppercase;
@@ -272,13 +290,13 @@
   }
 
   section {
-    margin-bottom: 2rem;
+    margin-bottom: 0.6rem;
   }
 
   .hint {
-    margin: -0.4rem 0 0.8rem;
+    margin: -0.2rem 0 0.45rem;
     color: var(--muted);
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
   }
 
   .mode {
@@ -293,8 +311,8 @@
     grid-template-columns: 7.5rem 7rem;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.5rem;
-    font-size: 1.0625rem;
+    margin-bottom: 0.2rem;
+    font-size: 1rem;
   }
 
   label.check {
@@ -304,13 +322,13 @@
   }
 
   input[type='number'] {
-    padding: 0.35rem 0.5rem;
+    padding: 0.25rem 0.5rem;
     border: 1px solid var(--border);
     border-radius: 0.3rem;
     background: var(--field);
     color: inherit;
     font: inherit;
-    font-size: 1.0625rem;
+    font-size: 1rem;
   }
 
   input[type='checkbox'] {
@@ -319,15 +337,21 @@
     accent-color: var(--green);
   }
 
+  /* Its height is held whether or not there is anything to say, so the form does not
+     jump every time a save starts and finishes. */
+  .status {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 2rem;
+  }
+
   .toast {
-    position: fixed;
-    bottom: 1.2rem;
-    right: 1.2rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     margin: 0;
-    padding: 0.45rem 1rem;
+    padding: 0.4rem 0.9rem;
     border-radius: 0.3rem;
     background: var(--green);
     color: #fff;

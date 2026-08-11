@@ -94,17 +94,31 @@ class Page {
 const messages = JSON.parse(await readFile(join(DIST, '_locales/en/messages.json'), 'utf8'));
 
 /**
- * This page opens in a tab, not in the browser's small embedded dialog — it is a full
- * form and the dialog crops it.
+ * The room the settings page gets. Chrome shows an options page without `open_in_tab` in
+ * an embedded dialog whose height is `min(0.9 * window height, 640)` — and that 640
+ * includes the dialog's own title bar, which is around 70px, so the page itself has some
+ * 570 to work with. Past that it scrolls inside a frame that does not look scrollable,
+ * which is how a whole section goes missing.
+ *
+ * The width is not a constraint: the page caps itself at 26rem, well under the dialog's
+ * 400px floor plus what it grows to, so it is measured wide enough not to interfere. The
+ * viewport is deliberately taller than the budget — the page has to be free to be too
+ * tall, or the measurement below could not see it.
+ */
+const DIALOG = { maxHeight: 570 };
+const VIEWPORT = { width: 800, height: 1200 };
+
+/**
+ * This page opens in that dialog, not in a tab.
  *
  * Checked against the built manifest because the config cannot be trusted to say: WXT
  * assembles `options_ui` from the entrypoint and assigns the whole object, so the same
  * key set in `wxt.config.ts` reads as deliberate, changes nothing, and quietly leaves the
- * default. It shipped that way in 1.2.0 with the config claiming otherwise.
+ * default. 1.2.0 shipped opening in the dialog while the config said tab.
  */
 const manifest = JSON.parse(await readFile(join(DIST, 'manifest.json'), 'utf8'));
-if (manifest.options_ui?.open_in_tab !== true) {
-  throw new Error('options_ui.open_in_tab is not true: settings would open in the dialog');
+if (manifest.options_ui?.open_in_tab === true) {
+  throw new Error('options_ui.open_in_tab is true: settings would take over a tab');
 }
 
 /** chrome.storage, cloning like the browser does — the constraint the bug broke. */
@@ -169,6 +183,13 @@ async function openSettings(seedJson) {
   const page = await Page.open(ws);
   await page.send('Page.enable');
   await page.send('Runtime.enable');
+  // A known viewport, so the height measured below does not depend on the window Chrome
+  // happened to open with.
+  await page.send('Emulation.setDeviceMetricsOverride', {
+    ...VIEWPORT,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
   await page.send('Page.addScriptToEvaluateOnNewDocument', { source: storageDouble(seedJson) });
   await page.send('Page.navigate', { url: `http://127.0.0.1:${HTTP_PORT}/options.html` });
   await sleep(2500);
@@ -209,7 +230,22 @@ try {
   const labels = await labelPage.eval(
     `JSON.stringify([...document.querySelectorAll('h2, label span')].map((e) => e.textContent.trim()))`,
   );
+  // The whole form, in the dialog, without scrolling. Measured on the real bundle in a
+  // real engine because the thing that decides it is the rendered text: a hint that wraps
+  // onto a third line in one language pushes the last section out of sight, and nothing in
+  // the CSS would look wrong. The check is against the built English catalogue; translated
+  // ones are longer, hence the room left below.
+  // The form's own bottom edge, not the document's: the viewport is taller than the page
+  // on purpose, so `documentElement.scrollHeight` would just report the viewport back.
+  const height = await labelPage.eval(
+    `Math.ceil(document.querySelector('main').getBoundingClientRect().bottom)`,
+  );
   labelPage.ws.close();
+  if (height > DIALOG.maxHeight) {
+    throw new Error(
+      `the settings page is ${height}px tall: the dialog gives it about ${DIALOG.maxHeight}`,
+    );
+  }
   const blank = JSON.parse(labels ?? '[]').filter((text) => text === '');
   if (blank.length > 0) throw new Error(`${blank.length} label(s) rendered empty`);
 

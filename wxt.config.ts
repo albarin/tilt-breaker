@@ -21,8 +21,9 @@ export default defineConfig({
     // in a language we do not ship.
     default_locale: 'en',
     permissions: ['storage', 'alarms'],
-    // `options_ui` is deliberately absent: WXT overwrites it from the options entrypoint,
-    // so it is declared in `entrypoints/options/index.html` where it is actually read.
+    // `options_ui` is deliberately absent: WXT builds it from the options entrypoint and
+    // assigns the whole object, so anything set here is overwritten without a word. It is
+    // `entrypoints/options/index.html` that decides how the settings page opens.
     host_permissions: ['*://*.chess.com/*', 'https://api.chess.com/*'],
     browser_specific_settings: {
       gecko: {

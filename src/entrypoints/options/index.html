@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="color-scheme" content="dark" />
     <!--
-      In a tab rather than the small embedded dialog: settings is a full form.
+      No `manifest.open_in_tab`: the settings open in the browser's embedded dialog,
+      where they stay next to the extension you were looking at instead of taking over
+      a tab. The form is laid out to fit that dialog — see App.svelte.
 
-      It has to be declared here and nowhere else. WXT builds `options_ui` from the
-      entrypoint's own meta tags and assigns the whole object, so the same key set in
-      `wxt.config.ts` is overwritten without a word and silently defaults to false.
+      If it ever has to move to a tab, it goes here as a meta tag and nowhere else. WXT
+      builds `options_ui` from this entrypoint's own meta tags and assigns the whole
+      object, so the same key set in `wxt.config.ts` is overwritten without a word.
     -->
-    <meta name="manifest.open_in_tab" content="true" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Settings — Tilt Breaker</title>
   </head>
