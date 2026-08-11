@@ -307,7 +307,11 @@
       <h2>{i18n.t('options.quota.confirm.title', [NAMES[asking.gameType]])}</h2>
       <p>{i18n.t('options.quota.confirm.body', [asking.played])}</p>
       <div class="choices">
-        <button bind:this={keepButton} class="keep" onclick={() => confirmDialog?.close()}>
+        <button
+          bind:this={keepButton}
+          class="cc-button keep"
+          onclick={() => confirmDialog?.close()}
+        >
           {i18n.t('options.quota.confirm.keep')}
         </button>
         <button class="raise" onclick={raiseAnyway}>
@@ -489,30 +493,32 @@
     gap: 0.5rem;
   }
 
+  /* Sizing only, like the popup and the overlay do: `ui/button.css` carries the colour
+     and the depth of the shared button, and this decides how big it is here. */
   .choices button {
-    padding: 0.4rem 0.85rem;
-    border-radius: 0.3rem;
+    padding: 0.5rem 1.05rem;
     font: inherit;
     font-size: 0.9375rem;
-    font-weight: 600;
     cursor: pointer;
   }
 
   /*
-   * Keeping the limit is the loud button and the one the dialog opens focused on; raising
-   * it is quiet and to the side. Both work, and the difference between them is the whole
-   * reason this dialog exists — the easy path should be the one you came here to protect.
+   * Keeping the limit is the raised green button the extension uses everywhere else, and
+   * the one the dialog opens focused on; raising it is the quiet one beside it. Both
+   * work, and the difference between them is the whole reason this dialog exists — the
+   * easy path should be the one you came here to protect.
    */
-  .keep {
-    border: 0;
-    background: var(--green);
-    color: #fff;
-  }
-
   .raise {
     border: 1px solid var(--border);
-    background: transparent;
+    /* The shape of the one next to it, without the lift. */
+    border-radius: 10px;
+    background: var(--field);
     color: var(--muted);
+    font-weight: 800;
+  }
+
+  .raise:hover {
+    color: var(--text);
   }
 
   /* Its height is held whether or not there is anything to say, so the form does not
