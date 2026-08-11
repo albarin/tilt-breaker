@@ -205,7 +205,7 @@ the sources in `src`.
 ## Checks
 
 ```sh
-pnpm test          # 209 tests (vitest + happy-dom)
+pnpm test          # 215 tests (vitest + happy-dom)
 pnpm check         # types (svelte-check)
 pnpm smoke         # builds, then drives the settings page in a real Chrome
 pnpm screenshots   # builds, then re-renders the store screenshots from it

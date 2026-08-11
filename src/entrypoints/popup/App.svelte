@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { i18n } from '#i18n';
   import { NO_ACCOUNT_HINT, noAccountAround, watchAccount } from '../../ui/account.svelte';
-  import { loadView, type View } from '../../ui/load';
+  import { watchView, type View } from '../../ui/load';
   import {
     COLORS,
     NAMES,
@@ -23,17 +23,19 @@
    */
   const limited = $derived(view?.rows.filter((r) => r.limit !== null) ?? []);
 
-  // A new account means new counts, so the view is reloaded when one is detected.
-  const { account, stop } = watchAccount(() => void refresh());
-
-  onMount(() => {
-    void refresh();
-    return stop;
+  // Kept current while the popup is open: the game you have just played reaches the
+  // archive a few seconds after it ends, which is usually mid-way through reading this.
+  const day = watchView((next) => {
+    view = next;
   });
 
-  async function refresh() {
-    view = await loadView();
-  }
+  // A new account means new counts, so the view is asked for again when one is detected.
+  const { account, stop } = watchAccount(() => void day.refresh());
+
+  onMount(() => () => {
+    day.stop();
+    stop();
+  });
 </script>
 
 <main>
