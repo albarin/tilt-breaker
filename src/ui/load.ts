@@ -24,12 +24,15 @@ export async function loadView(): Promise<View> {
 /**
  * How often the view is asked for again, and for how long.
  *
- * Long enough to outlast the archive's own delay — a game shows up seconds after it ends —
- * and short enough that a popup left open is not polling all evening. Each repeat is a
- * conditional request the server answers 304 unless something changed.
+ * The window was fifteen seconds and that was a guess at how long chess.com takes to
+ * publish a finished game. It takes as long as it takes, and giving up first put the popup
+ * back to showing a day that was missing the game you opened it to see. Two minutes now:
+ * longer than the wait has ever been, and still an end, because a popup nobody closed
+ * should not poll all evening. Each repeat is a conditional request answered 304 unless
+ * something changed.
  */
 export const ASK_EVERY_MS = 3_000;
-export const ASK_FOR_MS = 15_000;
+export const ASK_FOR_MS = 120_000;
 
 /**
  * The view, kept current for as long as the popup is open.
