@@ -6,7 +6,7 @@
   import {
     COLORS,
     NAMES,
-    blockReason,
+    blockNote,
     formatRatingDelta,
     formatTime,
     usedFraction,
@@ -76,19 +76,24 @@
 
       <ul>
         {#each limited as row (row.gameType)}
-          {@const reason = blockReason(row)}
-          <li class:blocked={reason !== null}>
+          {@const blocked = !row.decision.allow}
+          {@const note = blockNote(row)}
+          <li class:blocked>
             <div class="row">
               <span class="name"><Icon gameType={row.gameType} />{NAMES[row.gameType]}</span>
               <span class="count">{row.used}<span class="of">/{row.limit}</span></span>
             </div>
 
-            <!-- The bar says at a glance what a redundant "N left" used to repeat. -->
+            <!--
+              The bar says at a glance what a redundant "N left" used to repeat, and in red
+              what a sentence under the row used to. Taken from the decision and not from
+              the note below, which most blocks no longer write.
+            -->
             <div class="bar">
               <div
                 class="fill"
                 style:width="{usedFraction(row) * 100}%"
-                style:background={reason === null ? COLORS[row.gameType] : '#b0574f'}
+                style:background={blocked ? '#b0574f' : COLORS[row.gameType]}
               ></div>
             </div>
 
@@ -116,9 +121,14 @@
               </p>
             {/if}
 
-            {#if reason !== null}
-              <p class="note">{reason}</p>
-            {:else if row.lossStreak > 1}
+            <!--
+              The streak stays behind the block it used to sit behind. It is a warning
+              about where the evening is heading, and once a type is blocked the evening is
+              not heading there any more.
+            -->
+            {#if note !== null}
+              <p class="note">{note}</p>
+            {:else if !blocked && row.lossStreak > 1}
               <p class="note streak">{i18n.t('common.lossStreak', row.lossStreak)}</p>
             {/if}
           </li>

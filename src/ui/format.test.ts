@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameTypeSummary } from '../core/policy';
 import { catalogue } from '../test-setup';
-import { blockReason, formatRatingDelta, formatTime, usedFraction } from './format';
+import { blockNote, formatRatingDelta, formatTime, usedFraction } from './format';
 
 const at = (iso: string) => new Date(iso).getTime();
 
@@ -94,34 +94,34 @@ describe('formatRatingDelta', () => {
   });
 });
 
-describe('blockReason', () => {
+describe('blockNote', () => {
   it('says nothing while you can play', () => {
-    expect(blockReason(row({ used: 2 }))).toBeNull();
+    expect(blockNote(row({ used: 2 }))).toBeNull();
   });
 
-  it('reports a spent quota', () => {
-    const decision = { allow: false, reason: 'quota', used: 5, limit: 5 } as const;
-    expect(blockReason(row({ used: 5, decision }))).toBe('done for today');
-  });
-
-  /**
-   * A quota of 0 does not mean "you spent it", it means that game type is switched off
-   * for the day. `used >= limit` blocks it from the first game, which is what we want;
-   * what we must not do is word it as though you had played.
-   */
-  it('a quota of zero is disabled, not spent', () => {
-    const decision = { allow: false, reason: 'quota', used: 0, limit: 0 } as const;
-    expect(blockReason(row({ limit: 0, decision }))).toBe('off for today');
-  });
-
-  it('a streak says until when, because here waiting does help', () => {
+  it('says until when, because that is the one thing the row cannot show', () => {
     const decision = {
       allow: false,
       reason: 'tilt',
       losses: 3,
       until: at('2026-08-08T21:30:00'),
     } as const;
-    expect(blockReason(row({ decision }))).toBe('resting until 21:30');
+    expect(blockNote(row({ decision }))).toBe('resting until 21:30');
+  });
+
+  /**
+   * A spent quota writes nothing. The count reads 5/5 and the row is red, and a sentence
+   * repeating that is a sentence per blocked type on the night they are all blocked.
+   */
+  it('leaves a spent quota to the colour and the count', () => {
+    const decision = { allow: false, reason: 'quota', used: 5, limit: 5 } as const;
+    expect(blockNote(row({ used: 5, decision }))).toBeNull();
+  });
+
+  /** A quota of zero is switched off rather than spent, and equally wordless. */
+  it('leaves a quota of zero to them too', () => {
+    const decision = { allow: false, reason: 'quota', used: 0, limit: 0 } as const;
+    expect(blockNote(row({ limit: 0, decision }))).toBeNull();
   });
 });
 

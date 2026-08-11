@@ -75,13 +75,23 @@ export function formatRatingDelta(delta: number): string {
   return signed.format(delta);
 }
 
-/** Why that game type is blocked, or `null` if it can be played. */
-export function blockReason(row: GameTypeSummary): string | null {
-  const { decision, limit } = row;
+/**
+ * The words a block still needs under a row, or `null` when the row has said it already.
+ *
+ * Only a block carrying a time gets any. "Resting until 21:30" holds the one fact the row
+ * cannot show by itself — when it lifts — and no colour will ever say a time.
+ *
+ * A spent quota says itself: the count above it reads 6/6 and the row has gone red. A
+ * sentence under that repeats what a fraction and two colours have already made plain,
+ * and on the night all three game types are gone it repeats it three times, which reads
+ * as scolding rather than as information.
+ */
+export function blockNote(row: GameTypeSummary): string | null {
+  const { decision } = row;
   if (decision.allow) return null;
   if (decision.reason === 'tilt') return i18n.t('popup.reason.tilt', [formatTime(decision.until)]);
   if (decision.reason === 'gap') return i18n.t('popup.reason.gap', [formatTime(decision.until)]);
-  return isOff(limit) ? i18n.t('popup.reason.quotaOff') : i18n.t('popup.reason.quota');
+  return null;
 }
 
 /**

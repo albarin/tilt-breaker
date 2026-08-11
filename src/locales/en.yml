@@ -37,8 +37,6 @@ popup:
   reason:
     tilt: resting until $1
     gap: next game at $1
-    quota: done for today
-    quotaOff: off for today
 
 options:
   quota:

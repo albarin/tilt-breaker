@@ -26,8 +26,6 @@ popup:
   reason:
     tilt: descansant fins a les $1
     gap: propera partida a les $1
-    quota: per avui ja està
-    quotaOff: desactivat avui
 
 options:
   quota:
