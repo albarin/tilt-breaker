@@ -508,17 +508,20 @@
    * work, and the difference between them is the whole reason this dialog exists — the
    * easy path should be the one you came here to protect.
    */
+  /* The red this extension already refuses in: the failed-save toast, and the bar of a
+     game type that is spent. Flat rather than raised, so the green beside it stays the
+     one your eye lands on. */
   .raise {
-    border: 1px solid var(--border);
+    border: 0;
     /* The shape of the one next to it, without the lift. */
     border-radius: 10px;
-    background: var(--field);
-    color: var(--muted);
+    background: #b0574f;
+    color: #fff;
     font-weight: 800;
   }
 
   .raise:hover {
-    color: var(--text);
+    background: #bd6159;
   }
 
   /* Its height is held whether or not there is anything to say, so the form does not
