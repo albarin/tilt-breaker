@@ -1,6 +1,8 @@
 /*
- * Drives the *built* settings page in a real Chrome and checks that changing a field
- * actually reaches storage.
+ * Drives the *built* settings page in a real Chrome and checks three things a real
+ * browser is the only judge of: that changing a field actually reaches storage, that the
+ * page still opens in the browser's dialog rather than a tab, and that the form fits that
+ * dialog in every language shipped.
  *
  * Why this exists on top of the unit tests: the bug that shipped was a value the type
  * checker accepted, the test double accepted, and only a real browser refused — reactive
@@ -17,7 +19,7 @@
  */
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, readdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, extname, resolve } from 'node:path';
 
@@ -87,11 +89,31 @@ class Page {
 }
 
 /**
- * The English catalogue the build just produced, read from the bundle rather than from
- * the YAML: what the browser would load is what gets served here, so a string that never
- * made it through the build fails this the way it would fail a user.
+ * The catalogues the build just produced, read from the bundle rather than from the YAML:
+ * what the browser would load is what gets served here, so a string that never made it
+ * through the build fails this the way it would fail a user.
+ *
+ * Every language shipped, not only English, because the two checks that use them are about
+ * what the words do to the page — one looks for a key that renders as nothing, the other
+ * for a page grown taller than the dialog — and English is the shortest of the three by
+ * some 20px. A translation is where either would show up first.
  */
-const messages = JSON.parse(await readFile(join(DIST, '_locales/en/messages.json'), 'utf8'));
+const LOCALES = (await readdir(join(DIST, '_locales'))).sort();
+const CATALOGUES = Object.fromEntries(
+  await Promise.all(
+    LOCALES.map(async (locale) => [
+      locale,
+      JSON.parse(await readFile(join(DIST, `_locales/${locale}/messages.json`), 'utf8')),
+    ]),
+  ),
+);
+
+/**
+ * What `i18n.getUILanguage()` answers for each. The settings page formats no dates or
+ * numbers, so nothing here depends on it; it is set anyway so the double does not tell the
+ * page it is English while handing it Catalan.
+ */
+const uiLanguage = (locale) => (locale === 'en' ? 'en-GB' : locale);
 
 /**
  * The room the settings page gets. Chrome shows an options page without `open_in_tab` in
@@ -122,7 +144,7 @@ if (manifest.options_ui?.open_in_tab === true) {
 }
 
 /** chrome.storage, cloning like the browser does — the constraint the bug broke. */
-const storageDouble = (seedJson) => `(() => {
+const storageDouble = (seedJson, locale) => `(() => {
   const store = ${seedJson};
   const listeners = [];
   const local = {
@@ -149,7 +171,7 @@ const storageDouble = (seedJson) => `(() => {
   };
   // Every extension page has i18n, so the page is entitled to assume it: without one the
   // settings form throws on its first heading and renders nothing at all.
-  const messages = ${JSON.stringify(messages)};
+  const messages = ${JSON.stringify(CATALOGUES[locale])};
   const i18n = {
     getMessage: (key, subs) => {
       const message = messages[key]?.message;
@@ -157,7 +179,7 @@ const storageDouble = (seedJson) => `(() => {
       const list = subs === undefined ? [] : [subs].flat().map(String);
       return message.replace(/\\$(\\d)/g, (whole, d) => list[Number(d) - 1] ?? whole);
     },
-    getUILanguage: () => 'en-GB',
+    getUILanguage: () => ${JSON.stringify(uiLanguage(locale))},
   };
   const api = {
     storage: { local, onChanged: { addListener: (fn) => listeners.push(fn), removeListener: () => {} } },
@@ -169,7 +191,7 @@ const storageDouble = (seedJson) => `(() => {
   window.__dump = () => JSON.stringify(store);
 })();`;
 
-async function openSettings(seedJson) {
+async function openSettings(seedJson, locale = 'en') {
   const browser = await Page.open((await cdp('/json/version')).webSocketDebuggerUrl);
   const { result } = await browser.send('Target.createTarget', { url: 'about:blank' });
   browser.ws.close();
@@ -190,7 +212,9 @@ async function openSettings(seedJson) {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await page.send('Page.addScriptToEvaluateOnNewDocument', { source: storageDouble(seedJson) });
+  await page.send('Page.addScriptToEvaluateOnNewDocument', {
+    source: storageDouble(seedJson, locale),
+  });
   await page.send('Page.navigate', { url: `http://127.0.0.1:${HTTP_PORT}/options.html` });
   await sleep(2500);
   return page;
@@ -222,32 +246,38 @@ try {
     }
   }
 
+  // Two things the words themselves decide, so the page is opened once per language
+  // before anything is done to it.
+  //
   // Every visible word now comes from the catalogue, and a key that is missing there
   // renders as an empty string rather than as an error: the form would still work, still
-  // save, and still pass every check below while showing four blank headings. So the
-  // labels are read before anything else is done to them.
-  const labelPage = await openSettings('{}');
-  const labels = await labelPage.eval(
-    `JSON.stringify([...document.querySelectorAll('h2, label span')].map((e) => e.textContent.trim()))`,
-  );
-  // The whole form, in the dialog, without scrolling. Measured on the real bundle in a
+  // save, and still pass every check below while showing four blank headings.
+  //
+  // And the whole form has to fit the dialog. That is measured on the real bundle in a
   // real engine because the thing that decides it is the rendered text: a hint that wraps
-  // onto a third line in one language pushes the last section out of sight, and nothing in
-  // the CSS would look wrong. The check is against the built English catalogue; translated
-  // ones are longer, hence the room left below.
-  // The form's own bottom edge, not the document's: the viewport is taller than the page
-  // on purpose, so `documentElement.scrollHeight` would just report the viewport back.
-  const height = await labelPage.eval(
-    `Math.ceil(document.querySelector('main').getBoundingClientRect().bottom)`,
-  );
-  labelPage.ws.close();
-  if (height > DIALOG.maxHeight) {
-    throw new Error(
-      `the settings page is ${height}px tall: the dialog gives it about ${DIALOG.maxHeight}`,
+  // onto one more line pushes the last section out of sight, and nothing in the CSS would
+  // look wrong. English alone would not catch it — it is the shortest catalogue shipped.
+  for (const locale of LOCALES) {
+    const page = await openSettings('{}', locale);
+    const labels = await page.eval(
+      `JSON.stringify([...document.querySelectorAll('h2, label span')].map((e) => e.textContent.trim()))`,
     );
+    // The form's own bottom edge, not the document's: the viewport is taller than the page
+    // on purpose, so `documentElement.scrollHeight` would just report the viewport back.
+    const height = await page.eval(
+      `Math.ceil(document.querySelector('main').getBoundingClientRect().bottom)`,
+    );
+    page.ws.close();
+
+    const blank = JSON.parse(labels ?? '[]').filter((text) => text === '');
+    if (blank.length > 0) throw new Error(`${locale}: ${blank.length} label(s) rendered empty`);
+    if (height > DIALOG.maxHeight) {
+      throw new Error(
+        `${locale}: the settings page is ${height}px tall, and the dialog gives it about ${DIALOG.maxHeight}`,
+      );
+    }
+    console.log(`ok    ${locale.padEnd(7)} ${height}px de ${DIALOG.maxHeight}`);
   }
-  const blank = JSON.parse(labels ?? '[]').filter((text) => text === '');
-  if (blank.length > 0) throw new Error(`${blank.length} label(s) rendered empty`);
 
   for (const [name, index] of Object.entries(INDEX)) {
     let page = await openSettings('{}');

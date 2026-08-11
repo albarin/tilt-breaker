@@ -233,8 +233,9 @@
    * embedded dialog, and Chrome caps that dialog at 640px including its own title bar,
    * so the four sections and the save toast have to end inside roughly 570px or the last
    * of them is reachable only by scrolling something that does not look scrollable.
-   * `scripts/smoke-options.mjs` measures the built page and fails if it stops fitting,
-   * in whichever language it is built with — translations run longer than the English.
+   * `scripts/smoke-options.mjs` measures the built page in every language shipped and
+   * fails if any of them stops fitting: the translations run some 20px longer than the
+   * English, so English on its own would not notice.
    */
   main {
     max-width: 26rem;
