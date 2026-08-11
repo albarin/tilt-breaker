@@ -86,6 +86,13 @@ class Page {
   }
 }
 
+/**
+ * The English catalogue the build just produced, read from the bundle rather than from
+ * the YAML: what the browser would load is what gets served here, so a string that never
+ * made it through the build fails this the way it would fail a user.
+ */
+const messages = JSON.parse(await readFile(join(DIST, '_locales/en/messages.json'), 'utf8'));
+
 /** chrome.storage, cloning like the browser does — the constraint the bug broke. */
 const storageDouble = (seedJson) => `(() => {
   const store = ${seedJson};
@@ -112,10 +119,23 @@ const storageDouble = (seedJson) => `(() => {
     remove: () => Promise.resolve(),
     onChanged: { addListener: (fn) => listeners.push(fn), removeListener: () => {} },
   };
+  // Every extension page has i18n, so the page is entitled to assume it: without one the
+  // settings form throws on its first heading and renders nothing at all.
+  const messages = ${JSON.stringify(messages)};
+  const i18n = {
+    getMessage: (key, subs) => {
+      const message = messages[key]?.message;
+      if (message === undefined) return '';
+      const list = subs === undefined ? [] : [subs].flat().map(String);
+      return message.replace(/\\$(\\d)/g, (whole, d) => list[Number(d) - 1] ?? whole);
+    },
+    getUILanguage: () => 'en-GB',
+  };
   const api = {
     storage: { local, onChanged: { addListener: (fn) => listeners.push(fn), removeListener: () => {} } },
     runtime: { id: 'smoke', getURL: (p) => p, onMessage: { addListener: () => {} },
                sendMessage: () => Promise.resolve(undefined) },
+    i18n,
   };
   window.chrome = api; window.browser = api;
   window.__dump = () => JSON.stringify(store);
@@ -166,6 +186,18 @@ try {
       await sleep(250);
     }
   }
+
+  // Every visible word now comes from the catalogue, and a key that is missing there
+  // renders as an empty string rather than as an error: the form would still work, still
+  // save, and still pass every check below while showing four blank headings. So the
+  // labels are read before anything else is done to them.
+  const labelPage = await openSettings('{}');
+  const labels = await labelPage.eval(
+    `JSON.stringify([...document.querySelectorAll('h2, label span')].map((e) => e.textContent.trim()))`,
+  );
+  labelPage.ws.close();
+  const blank = JSON.parse(labels ?? '[]').filter((text) => text === '');
+  if (blank.length > 0) throw new Error(`${blank.length} label(s) rendered empty`);
 
   for (const [name, index] of Object.entries(INDEX)) {
     let page = await openSettings('{}');

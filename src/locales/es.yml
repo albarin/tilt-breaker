@@ -1,0 +1,68 @@
+# Español. Traducción de `en.yml`: las claves y los `$1` son los mismos, la copia no.
+
+extension:
+  name: Tilt Breaker
+  description: 'Corta la espiral de una partida más en chess.com: tope diario por modalidad, descanso entre partidas y sin revancha.'
+
+common:
+  # El sufijo que en inglés no existe: aquí las horas se escriben 21:30h.
+  time: $1h
+  lossStreak:
+    1: 1 derrota seguida
+    n: $1 derrotas seguidas
+  noAccount: Aún no hay cuenta. Abre [link] con la sesión iniciada.
+  noAccountHint: Puede tardar un poco, así que vuelve en un minuto.
+
+popup:
+  checking: Comprobando…
+  networkError: No se ha podido contactar con chess.com. Estos son los últimos datos conocidos.
+  nextGame: Próxima partida a las $1
+  # Victorias, empates y derrotas.
+  wins: $1V
+  draws: $1E
+  losses: $1D
+  settings: Ajustes
+  reason:
+    tilt: descansando hasta las $1
+    gap: próxima partida a las $1
+    quota: por hoy ya está
+    quotaOff: desactivado hoy
+
+options:
+  quota:
+    heading: Partidas al día
+    hint: Máximo de partidas que puedes jugar por modalidad.
+    hintBlank: Déjalo en blanco para no poner límite.
+    placeholder: sin límite
+  gap:
+    heading: Entre partidas
+    hint: Minutos que debes esperar al terminar una partida, sea de la modalidad que sea.
+    hintOff: Cero lo desactiva.
+    label: Minutos
+  tilt:
+    heading: Racha de derrotas
+    hint: Derrotas seguidas permitidas en una modalidad antes de que se bloquee durante $1 minutos.
+    label: Derrotas
+  rematch:
+    heading: Revanchas
+    label: Bloquear el botón de revancha
+  saving: Guardando…
+  saved: Guardado
+  saveFailed: No se ha guardado. Los campos muestran lo que hay almacenado.
+
+overlay:
+  quota:
+    title: Se acabó tu $1 de hoy
+    body: Has jugado $1 de $2. Vuelve mañana.
+  quotaOff:
+    title: Hoy no hay $1
+    body: Lo tienes puesto a cero. Vuelve mañana.
+  tilt:
+    body: Descansando hasta las $1, dentro de $2 min.
+  gap:
+    title: Una cada vez
+    body: Acabas de jugar. Próxima partida a las $1, dentro de $2 min.
+  rematch:
+    title: Sin revanchas
+    body: Este es el botón que convierte una partida en cinco. Si de verdad quieres otra, vuelve al lobby.
+  close: Entendido

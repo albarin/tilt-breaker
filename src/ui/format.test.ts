@@ -1,8 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameTypeSummary } from '../core/policy';
 import { blockReason, formatTime, usedFraction } from './format';
 
 const at = (iso: string) => new Date(iso).getTime();
+
+// The 12-hour case reloads the module and stubs the language; neither may outlive it.
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.resetModules();
+});
 
 function row(overrides: Partial<GameTypeSummary>): GameTypeSummary {
   return {
@@ -17,9 +23,24 @@ function row(overrides: Partial<GameTypeSummary>): GameTypeSummary {
 }
 
 describe('formatTime', () => {
-  it('formats as 24-hour hh:mm with an h suffix', () => {
-    expect(formatTime(at('2026-08-09T04:00:00'))).toBe('04:00h');
-    expect(formatTime(at('2026-08-08T21:05:00'))).toBe('21:05h');
+  // `en-GB`, pinned by the test setup, is a 24-hour locale. The suffix that used to be
+  // welded on here now lives in the catalogue, and English does not ask for one.
+  it('formats the time in the UI language', () => {
+    expect(formatTime(at('2026-08-09T04:00:00'))).toBe('04:00');
+    expect(formatTime(at('2026-08-08T21:05:00'))).toBe('21:05');
+  });
+
+  /**
+   * The clock shape is not ours to choose. A 12-hour locale must get a 12-hour time, and
+   * the module caches its formatter on first use — so this reloads it rather than
+   * reassigning the language under a formatter that has already been built.
+   */
+  it('follows a 12-hour locale', async () => {
+    vi.resetModules();
+    vi.spyOn(browser.i18n, 'getUILanguage').mockReturnValue('en-US');
+    const { formatTime: reloaded } = await import('./format');
+
+    expect(reloaded(at('2026-08-08T21:05:00'))).toMatch(/09:05\s?PM/i);
   });
 });
 
@@ -50,7 +71,7 @@ describe('blockReason', () => {
       losses: 3,
       until: at('2026-08-08T21:30:00'),
     } as const;
-    expect(blockReason(row({ decision }))).toBe('resting until 21:30h');
+    expect(blockReason(row({ decision }))).toBe('resting until 21:30');
   });
 });
 

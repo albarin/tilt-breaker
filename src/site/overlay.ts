@@ -1,3 +1,4 @@
+import { i18n } from '#i18n';
 import { isOff, type Decision } from '../core/policy';
 import type { GameType } from '../core/types';
 import { NAMES, formatTime } from '../ui/format';
@@ -24,29 +25,36 @@ export function copyFor(decision: Decision, gameType: GameType, now: number): Ov
   if (decision.reason === 'quota') {
     if (isOff(decision.limit)) {
       return {
-        title: `No ${NAMES[gameType].toLowerCase()} today`,
-        body: 'You have it set to zero. Come back tomorrow.',
+        title: i18n.t('overlay.quotaOff.title', [NAMES[gameType]]),
+        body: i18n.t('overlay.quotaOff.body'),
       };
     }
     return {
-      title: `That's your ${NAMES[gameType].toLowerCase()} for today`,
-      body: `You have played ${decision.used} of ${decision.limit}. Come back tomorrow.`,
+      title: i18n.t('overlay.quota.title', [NAMES[gameType]]),
+      body: i18n.t('overlay.quota.body', [decision.used, decision.limit]),
     };
   }
 
-  const wait = `${formatTime(decision.until)}, ${minutesUntil(decision.until, now)} min from now.`;
+  // The time and the minutes go in as two substitutions rather than as one pre-built
+  // fragment: every language puts them in its own order, and half a sentence cannot be
+  // translated. Which is why the body carries the whole thing and not a tail.
+  const at = formatTime(decision.until);
+  const mins = minutesUntil(decision.until, now);
 
   if (decision.reason === 'tilt') {
-    return { title: `${decision.losses} losses in a row`, body: `Resting until ${wait}` };
+    return {
+      title: i18n.t('common.lossStreak', decision.losses),
+      body: i18n.t('overlay.tilt.body', [at, mins]),
+    };
   }
 
-  return { title: 'One at a time', body: `You just played. Next game at ${wait}` };
+  return { title: i18n.t('overlay.gap.title'), body: i18n.t('overlay.gap.body', [at, mins]) };
 }
 
 /** Rematch is blocked always, quota or no quota, so its copy mentions no limit. */
 export const REMATCH_COPY: OverlayCopy = {
-  title: 'No rematches',
-  body: 'This is the button that turns one game into five. If you really want another, go back to the lobby.',
+  title: i18n.t('overlay.rematch.title'),
+  body: i18n.t('overlay.rematch.body'),
 };
 
 /**
@@ -141,7 +149,7 @@ export function createOverlay(doc: Document): Overlay {
 
   const close = doc.createElement('button');
   close.className = 'cc-button';
-  close.textContent = 'Got it';
+  close.textContent = i18n.t('overlay.close');
   close.addEventListener('click', () => hide());
 
   card.append(title, body, close);

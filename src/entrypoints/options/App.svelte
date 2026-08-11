@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { COOLDOWN_MINUTES, GAME_TYPES, type Settings, type GameType } from '../../core/types';
   import { getSettings, setSettings } from '../../state/storage';
-  import { NO_ACCOUNT_HINT, watchAccount } from '../../ui/account.svelte';
+  import { i18n } from '#i18n';
+  import { NO_ACCOUNT_HINT, noAccountAround, watchAccount } from '../../ui/account.svelte';
   import { NAMES } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
 
@@ -123,10 +124,10 @@
       {/if}
       <strong>{account.name}</strong>
     {:else}
-      No account yet. Open <a href="https://www.chess.com/" target="_blank" rel="noreferrer"
-        >chess.com</a
-      >
-      while signed in. {NO_ACCOUNT_HINT}
+      {@const around = noAccountAround()}
+      {around.before}<a href="https://www.chess.com/" target="_blank" rel="noreferrer">chess.com</a
+      >{around.after}
+      {NO_ACCOUNT_HINT}
     {/if}
   </p>
 
@@ -135,9 +136,9 @@
          show is not a state change, and Svelte would skip the DOM write. -->
     {#key formKey}
       <section>
-        <h2>Games per day</h2>
+        <h2>{i18n.t('options.quota.heading')}</h2>
         <p class="hint">
-          Most games you may play per game type.<br />Leave blank for no limit.
+          {i18n.t('options.quota.hint')}<br />{i18n.t('options.quota.hintBlank')}
         </p>
         {#each GAME_TYPES as gameType (gameType)}
           <label>
@@ -146,7 +147,7 @@
               type="number"
               min="0"
               step="1"
-              placeholder="no limit"
+              placeholder={i18n.t('options.quota.placeholder')}
               value={settings.limits[gameType] ?? ''}
               onchange={(e) => changeLimit(gameType, e.currentTarget)}
             />
@@ -155,13 +156,12 @@
       </section>
 
       <section>
-        <h2>Between games</h2>
+        <h2>{i18n.t('options.gap.heading')}</h2>
         <p class="hint">
-          Minutes you must wait after finishing a game,<br />whatever its type. Zero switches it
-          off.
+          {i18n.t('options.gap.hint')}<br />{i18n.t('options.gap.hintOff')}
         </p>
         <label>
-          <span>Minutes</span>
+          <span>{i18n.t('options.gap.label')}</span>
           <input
             type="number"
             min="0"
@@ -173,12 +173,12 @@
       </section>
 
       <section>
-        <h2>Losing streak</h2>
+        <h2>{i18n.t('options.tilt.heading')}</h2>
         <p class="hint">
-          Losses in a row allowed in one game type<br />before it locks for {COOLDOWN_MINUTES} minutes.
+          {i18n.t('options.tilt.hint', [COOLDOWN_MINUTES])}
         </p>
         <label>
-          <span>Losses</span>
+          <span>{i18n.t('options.tilt.label')}</span>
           <input
             type="number"
             min="1"
@@ -190,14 +190,14 @@
       </section>
 
       <section>
-        <h2>Rematches</h2>
+        <h2>{i18n.t('options.rematch.heading')}</h2>
         <label class="check">
           <input
             type="checkbox"
             checked={settings.blockRematch}
             onchange={(e) => save({ blockRematch: e.currentTarget.checked })}
           />
-          <span>Block the rematch button</span>
+          <span>{i18n.t('options.rematch.label')}</span>
         </label>
       </section>
     {/key}
@@ -206,11 +206,11 @@
   {#if saveState !== 'idle'}
     <p class="toast" class:failed={saveState === 'error'} role="status">
       {#if saveState === 'saving'}
-        <span class="spinner" aria-hidden="true"></span>Saving…
+        <span class="spinner" aria-hidden="true"></span>{i18n.t('options.saving')}
       {:else if saveState === 'error'}
-        Not saved. The fields show what is stored.
+        {i18n.t('options.saveFailed')}
       {:else}
-        Saved
+        {i18n.t('options.saved')}
       {/if}
     </p>
   {/if}

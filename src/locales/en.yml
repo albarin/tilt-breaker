@@ -1,0 +1,85 @@
+# The source catalogue. Every other language is a translation of this file, so a string
+# that is not here does not exist: no surface builds a sentence out of fragments.
+#
+# Keys under `common` are shared on purpose. Both pages already said the same things in
+# slightly different words once, and the fix was to share the string rather than to keep
+# two of them in step.
+
+extension:
+  name: Tilt Breaker
+  description: 'Stop the one-more-game spiral on chess.com: daily caps per game type, a cooldown between games, no rematch.'
+
+common:
+  # Wraps an already locale-formatted clock time. English leaves it alone; Spanish and
+  # Catalan append the h they write by convention. Never put the format itself here —
+  # Intl does that from the UI language.
+  time: $1
+  # Shared between the popup's note and the overlay's title: it is one sentence, and the
+  # two surfaces drifting apart in wording is exactly what sharing prevents.
+  lossStreak:
+    1: 1 loss in a row
+    n: $1 losses in a row
+  # `[link]` is split out by the page and replaced with a link to chess.com. It has to
+  # survive translation verbatim, but it can move: put it where the sentence needs it.
+  noAccount: No account yet. Open [link] while signed in.
+  noAccountHint: It can take a while, so come back in a minute.
+
+popup:
+  checking: Checking…
+  networkError: Could not reach chess.com. This is the last data known.
+  nextGame: Next game at $1
+  # The day's record. One letter each, so three of them fit under a bar: win, draw, loss.
+  wins: $1W
+  draws: $1D
+  losses: $1L
+  settings: Settings
+  reason:
+    tilt: resting until $1
+    gap: next game at $1
+    quota: done for today
+    quotaOff: off for today
+
+options:
+  quota:
+    heading: Games per day
+    hint: Most games you may play per game type.
+    hintBlank: Leave blank for no limit.
+    placeholder: no limit
+  gap:
+    heading: Between games
+    hint: Minutes you must wait after finishing a game, whatever its type.
+    hintOff: Zero switches it off.
+    label: Minutes
+  tilt:
+    heading: Losing streak
+    # $1 is the cooldown in minutes, fixed in the code rather than configurable.
+    hint: Losses in a row allowed in one game type before it locks for $1 minutes.
+    label: Losses
+  rematch:
+    heading: Rematches
+    label: Block the rematch button
+  saving: Saving…
+  saved: Saved
+  saveFailed: Not saved. The fields show what is stored.
+
+overlay:
+  # $1 is the game type, which is never translated: Bullet, Blitz and Rapid are the app's
+  # own names for them, and a proper noun keeps its capital in every language.
+  quota:
+    title: That's your $1 for today
+    # $1 games played, $2 the limit.
+    body: You have played $1 of $2. Come back tomorrow.
+  quotaOff:
+    title: No $1 today
+    body: You have it set to zero. Come back tomorrow.
+  tilt:
+    # $1 is the time it lifts, $2 the minutes until then. Whole sentences, not fragments:
+    # word order around a time is not the same in every language.
+    body: Resting until $1, $2 min from now.
+  gap:
+    title: One at a time
+    body: You just played. Next game at $1, $2 min from now.
+  rematch:
+    title: No rematches
+    body: This is the button that turns one game into five. If you really want another, go back to the lobby.
+  close: Got it

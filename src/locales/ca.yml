@@ -1,0 +1,68 @@
+# Català. Traducció d'`en.yml`: les claus i els `$1` són els mateixos, la còpia no.
+
+extension:
+  name: Tilt Breaker
+  description: "Talla l'espiral d'una partida més a chess.com: límit diari per modalitat, descans entre partides i sense revenja."
+
+common:
+  # El sufix que en anglès no hi és: aquí les hores s'escriuen 21:30h.
+  time: $1h
+  lossStreak:
+    1: 1 derrota seguida
+    n: $1 derrotes seguides
+  noAccount: Encara no hi ha cap compte. Obre [link] amb la sessió iniciada.
+  noAccountHint: Pot trigar una mica, així que torna d'aquí a un minut.
+
+popup:
+  checking: S'està comprovant…
+  networkError: No s'ha pogut contactar amb chess.com. Aquestes són les últimes dades conegudes.
+  nextGame: Propera partida a les $1
+  # Victòries, empats i derrotes.
+  wins: $1V
+  draws: $1E
+  losses: $1D
+  settings: Configuració
+  reason:
+    tilt: descansant fins a les $1
+    gap: propera partida a les $1
+    quota: per avui ja està
+    quotaOff: desactivat avui
+
+options:
+  quota:
+    heading: Partides al dia
+    hint: Màxim de partides que pots jugar per modalitat.
+    hintBlank: Deixa-ho en blanc per no posar-hi límit.
+    placeholder: sense límit
+  gap:
+    heading: Entre partides
+    hint: Minuts que has d'esperar en acabar una partida, sigui de la modalitat que sigui.
+    hintOff: Zero ho desactiva.
+    label: Minuts
+  tilt:
+    heading: Ratxa de derrotes
+    hint: Derrotes seguides permeses en una modalitat abans que es bloquegi durant $1 minuts.
+    label: Derrotes
+  rematch:
+    heading: Revenges
+    label: Bloqueja el botó de revenja
+  saving: S'està desant…
+  saved: Desat
+  saveFailed: No s'ha desat. Els camps mostren el que hi ha emmagatzemat.
+
+overlay:
+  quota:
+    title: S'ha acabat el teu $1 d'avui
+    body: Has jugat $1 de $2. Torna demà.
+  quotaOff:
+    title: Avui no hi ha $1
+    body: Ho tens posat a zero. Torna demà.
+  tilt:
+    body: Descansant fins a les $1, d'aquí a $2 min.
+  gap:
+    title: Una cada vegada
+    body: Acabes de jugar. Propera partida a les $1, d'aquí a $2 min.
+  rematch:
+    title: Sense revenges
+    body: Aquest és el botó que converteix una partida en cinc. Si realment en vols una altra, torna al lobby.
+  close: Entesos

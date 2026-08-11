@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { NO_ACCOUNT_HINT, watchAccount } from '../../ui/account.svelte';
+  import { i18n } from '#i18n';
+  import { NO_ACCOUNT_HINT, noAccountAround, watchAccount } from '../../ui/account.svelte';
   import { loadView, type View } from '../../ui/load';
   import { COLORS, NAMES, blockReason, formatTime, usedFraction } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
@@ -30,7 +31,7 @@
 
 <main>
   <header>
-    <h1>Tilt Breaker</h1>
+    <h1>{i18n.t('extension.name')}</h1>
     {#if account.name !== null}
       <span class="account">
         <!-- Decoration: if it fails to load it just goes away, name and all else stay. -->
@@ -43,26 +44,27 @@
   </header>
 
   {#if view === null}
-    <p class="muted">Checking…</p>
+    <p class="muted">{i18n.t('popup.checking')}</p>
   {:else}
     <!--
       With no account there is nothing to count, so the rows would be three empty
       placeholders pretending to be data. Only the notice shows.
     -->
     {#if view.problem === 'no-account'}
+      {@const around = noAccountAround()}
       <p class="warning">
-        No account yet. Open <a href="https://www.chess.com/" target="_blank" rel="noreferrer"
+        {around.before}<a href="https://www.chess.com/" target="_blank" rel="noreferrer"
           >chess.com</a
-        >
-        while signed in. {NO_ACCOUNT_HINT}
+        >{around.after}
+        {NO_ACCOUNT_HINT}
       </p>
     {:else}
       {#if view.problem === 'network-error'}
-        <p class="warning">Could not reach chess.com. This is the last data known.</p>
+        <p class="warning">{i18n.t('popup.networkError')}</p>
       {/if}
 
       {#if view.gapUntil !== undefined}
-        <p class="gap">Next game at {formatTime(view.gapUntil)}</p>
+        <p class="gap">{i18n.t('popup.nextGame', [formatTime(view.gapUntil)])}</p>
       {/if}
 
       <ul>
@@ -89,23 +91,25 @@
             -->
             {#if row.used > 0}
               <p class="tally">
-                <span class="win">{row.tally.wins}W</span>
-                <span class="draw">{row.tally.draws}D</span>
-                <span class="loss">{row.tally.losses}L</span>
+                <span class="win">{i18n.t('popup.wins', [row.tally.wins])}</span>
+                <span class="draw">{i18n.t('popup.draws', [row.tally.draws])}</span>
+                <span class="loss">{i18n.t('popup.losses', [row.tally.losses])}</span>
               </p>
             {/if}
 
             {#if reason !== null}
               <p class="note">{reason}</p>
             {:else if row.lossStreak > 1}
-              <p class="note streak">{row.lossStreak} losses in a row</p>
+              <p class="note streak">{i18n.t('common.lossStreak', row.lossStreak)}</p>
             {/if}
           </li>
         {/each}
       </ul>
     {/if}
 
-    <button class="cc-button" onclick={() => browser.runtime.openOptionsPage()}>Settings</button>
+    <button class="cc-button" onclick={() => browser.runtime.openOptionsPage()}
+      >{i18n.t('popup.settings')}</button
+    >
   {/if}
 </main>
 

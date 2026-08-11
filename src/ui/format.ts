@@ -1,7 +1,15 @@
+import { i18n } from '#i18n';
 import { isOff, type GameTypeSummary } from '../core/policy';
 import type { GameType } from '../core/types';
 
-/** Display names, as chess.com writes them. */
+/**
+ * Display names, as chess.com writes them.
+ *
+ * Deliberately not translated and deliberately not in the catalogues: these are the app's
+ * names for the three modes, they are what the site itself shows next to the buttons we
+ * block, and players say them in every language. Being proper nouns, they also keep their
+ * capital wherever a sentence drops them.
+ */
 export const NAMES: Record<GameType, string> = {
   bullet: 'Bullet',
   blitz: 'Blitz',
@@ -15,20 +23,40 @@ export const COLORS: Record<GameType, string> = {
   rapid: '#81b64c',
 };
 
-const hhmm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+/**
+ * Built on first use rather than at import: it reads the UI language, and a module
+ * evaluating `browser.i18n` the moment it is imported is a needless ordering constraint.
+ * Cached because the language cannot change without restarting the browser.
+ */
+let hhmm: Intl.DateTimeFormat | null = null;
 
-/** Every time shown anywhere goes through here, so the `h` suffix is set in one place. */
+function clock(ms: number): string {
+  hhmm ??= new Intl.DateTimeFormat(browser.i18n.getUILanguage(), {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return hhmm.format(ms);
+}
+
+/**
+ * Every time shown anywhere goes through here.
+ *
+ * Two decisions used to be frozen in this line: `en-GB`, and an `h` welded onto the
+ * result. Neither travels — 24-hour clocks are not universal, and the `h` is a Spanish
+ * convention that would be wrong on "4:00 PM". Now `Intl` reads the UI language for the
+ * shape of the time, and the catalogue decides what wraps it.
+ */
 export function formatTime(ms: number): string {
-  return `${hhmm.format(ms)}h`;
+  return i18n.t('common.time', [clock(ms)]);
 }
 
 /** Why that game type is blocked, or `null` if it can be played. */
 export function blockReason(row: GameTypeSummary): string | null {
   const { decision, limit } = row;
   if (decision.allow) return null;
-  if (decision.reason === 'tilt') return `resting until ${formatTime(decision.until)}`;
-  if (decision.reason === 'gap') return `next game at ${formatTime(decision.until)}`;
-  return isOff(limit) ? 'off for today' : 'done for today';
+  if (decision.reason === 'tilt') return i18n.t('popup.reason.tilt', [formatTime(decision.until)]);
+  if (decision.reason === 'gap') return i18n.t('popup.reason.gap', [formatTime(decision.until)]);
+  return isOff(limit) ? i18n.t('popup.reason.quotaOff') : i18n.t('popup.reason.quota');
 }
 
 /**

@@ -1,7 +1,24 @@
+import { i18n } from '#i18n';
 import { avatarItem, detectedUsernameItem } from '../state/storage';
 
 /** What both pages say when no chess.com tab has reported an account yet. */
-export const NO_ACCOUNT_HINT = 'It can take a while, so come back in a minute.';
+export const NO_ACCOUNT_HINT = i18n.t('common.noAccountHint');
+
+/**
+ * The sentence before it, split where the chess.com link goes.
+ *
+ * The link sits mid-sentence, and the words around it do not keep their order across
+ * languages — so the catalogue holds the whole sentence with a `[link]` marker, and the
+ * page puts its anchor where the marker was rather than gluing three pieces together.
+ *
+ * Square brackets rather than braces: `{link}` is the library's own named-substitution
+ * syntax, which would take the marker over and hand back a string with no way to tell
+ * where the anchor belonged.
+ */
+export function noAccountAround(): { before: string; after: string } {
+  const [before = '', after = ''] = i18n.t('common.noAccount').split('[link]');
+  return { before, after };
+}
 
 export type Account = {
   /** The detected account, or `null` until a chess.com tab reports one. */

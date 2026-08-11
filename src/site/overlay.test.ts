@@ -13,7 +13,9 @@ describe('copyFor', () => {
 
   it('a spent quota says how many and points at tomorrow', () => {
     const copy = copyFor({ allow: false, reason: 'quota', used: 5, limit: 5 }, 'blitz', NOON)!;
-    expect(copy.title).toContain('blitz');
+    // Capitalised: the mode names are not translated, and a proper noun keeps its
+    // capital wherever a sentence puts it — including languages that capitalise nouns.
+    expect(copy.title).toContain('Blitz');
     expect(copy.body).toContain('5 of 5');
     expect(copy.body).toContain('tomorrow');
   });
@@ -29,7 +31,7 @@ describe('copyFor', () => {
     const until = at('2026-08-08T12:45:00');
     const copy = copyFor({ allow: false, reason: 'tilt', losses: 3, until }, 'blitz', NOON)!;
     expect(copy.title).toContain('3 losses');
-    expect(copy.body).toContain('12:45h');
+    expect(copy.body).toContain('12:45');
     expect(copy.body).toContain('45 min');
   });
 
@@ -82,12 +84,12 @@ describe('rematchCopy', () => {
   it('a block covering every type outranks the rematch rule', () => {
     const copy = rematchCopy({ blockRematch: true, blanket, now: NOON })!;
     expect(copy.body).not.toMatch(/lobby/i);
-    expect(copy.body).toContain('12:20h');
+    expect(copy.body).toContain('12:20');
   });
 
   it('and still explains itself with the rematch rule switched off', () => {
     const copy = rematchCopy({ blockRematch: false, blanket, now: NOON })!;
-    expect(copy.body).toContain('12:20h');
+    expect(copy.body).toContain('12:20');
   });
 });
 

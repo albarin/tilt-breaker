@@ -104,6 +104,7 @@ src/
     storage.ts     typed storage; every read-modify-write is serialised
     sync.ts        brings the day's count up to date
   ui/              shared by the two pages: palette, formatting, icons
+  locales/         every user-facing string, one file per language
   messaging.ts     the whole content script ↔ background protocol
   entrypoints/
     background.ts       the only decider; queries the API and answers
@@ -158,6 +159,26 @@ preferred over design-system ones, which carry a hash and rotate: never select o
 `cc-*`.
 
 The site console carries the full trace under the `[tilt-breaker]` prefix.
+
+## Languages
+
+English, Spanish and Catalan — the three that can be checked by someone who reads them.
+A machine translation nobody can verify is worse than English, which at least reads as a
+language somebody wrote. The browser picks: extensions take their
+language from the browser's own, so there is deliberately no language setting to get
+wrong — and no way to override it either, which is the trade-off the platform imposes.
+
+Every string lives in `src/locales/<lang>.yml`, `en.yml` being the source the others
+translate. To add a language, copy it, translate the values, and add the code to
+`TRANSLATIONS` in `src/locales/locales.test.ts` — which then holds the new file to the
+English one: same keys, same `$1` substitutions, plurals still plural. That test exists
+because a missing key is not an error anywhere else: `getMessage` answers `''`, the line
+renders blank, and every other test passes because they all run in English.
+
+Two things never get translated. The mode names — Bullet, Blitz and Rapid are what the
+site itself shows, and players say them in every language. And clock times, which `Intl`
+formats from the UI language; the catalogue only decides what wraps the result, which is
+how `21:30h` stays Spanish without turning up on an English `4:00 PM`.
 
 ## Building from source
 
