@@ -21,6 +21,25 @@ function apiGame(id: string, overrides: Partial<ApiGame> = {}): ApiGame {
 const build = (apiGames: ApiGame[]) =>
   gamesForDay({ records: toRecords(apiGames, ME), dayStart: DAY_START, dayEnd: DAY_END });
 
+/** One of yours, ended `minutes` past noon, leaving you on `rating`. */
+function played(
+  id: string,
+  minutes: number,
+  rating: number | undefined,
+  overrides: Partial<ApiGame> = {},
+): ApiGame {
+  return apiGame(id, {
+    end_time: Math.floor(NOON / 1000) + minutes * 60,
+    white: { username: ME, result: 'win', ...(rating === undefined ? {} : { rating }) },
+    ...overrides,
+  });
+}
+
+const deltas = (apiGames: ApiGame[]) =>
+  toRecords(apiGames, ME)
+    .sort((a, b) => a.endedAt - b.endedAt)
+    .map((record) => record.ratingDelta);
+
 describe('parseGameId', () => {
   /** Both shapes are real and come from the same game: live play and the archive. */
   it('accepts both URL shapes', () => {
@@ -115,6 +134,73 @@ describe('toRecords', () => {
     });
     const correspondence = apiGame('2', { time_class: 'daily' });
     expect(toRecords([theirs, correspondence, apiGame('3')], ME).map((r) => r.id)).toEqual(['3']);
+  });
+});
+
+/**
+ * The archive reports the rating a game left you on and never the change, so every delta
+ * here is a subtraction against the game before it. That is the whole reason this is done
+ * over the archive instead of over a day.
+ */
+describe('rating deltas', () => {
+  it('measures each game against the one before it', () => {
+    expect(deltas([played('1', 0, 1200), played('2', 5, 1208), played('3', 10, 1201)])).toEqual([
+      undefined,
+      8,
+      -7,
+    ]);
+  });
+
+  /** The archive may hand them over in any order; the chain is by time, not by position. */
+  it('does not care what order the archive is in', () => {
+    expect(deltas([played('3', 10, 1201), played('1', 0, 1200), played('2', 5, 1208)])).toEqual([
+      undefined,
+      8,
+      -7,
+    ]);
+  });
+
+  /** Ratings are per game type, so a blitz game must never be measured against a rapid one. */
+  it('keeps the game types apart', () => {
+    const games = [
+      played('1', 0, 1200),
+      played('2', 5, 900, { time_class: 'rapid' }),
+      played('3', 10, 1210),
+      played('4', 15, 890, { time_class: 'rapid' }),
+    ];
+    expect(deltas(games)).toEqual([undefined, undefined, 10, -10]);
+  });
+
+  /**
+   * An unrated game is the one case where zero is a fact rather than a guess: it moved
+   * nothing. It must also not become the mark the next game is measured against, or that
+   * game would be credited with the change this one did not make.
+   */
+  it('counts an unrated game as no change, and does not chain through it', () => {
+    const games = [
+      played('1', 0, 1200),
+      played('2', 5, 1200, { rated: false }),
+      played('3', 10, 1206),
+    ];
+    expect(deltas(games)).toEqual([undefined, 0, 6]);
+  });
+
+  /**
+   * The first game of the archive has nothing behind it to subtract. It keeps no delta
+   * rather than a zero, because a zero would read as "you held your rating" on what is
+   * really "we cannot see back that far".
+   */
+  it('leaves the earliest game unmeasured rather than calling it zero', () => {
+    expect(deltas([played('1', 0, 1200)])).toEqual([undefined]);
+  });
+
+  /**
+   * A missing rating breaks the chain rather than being skipped over. Measuring the next
+   * game against the last rating we did see would hand it two games' worth of change.
+   */
+  it('leaves a game the archive gave no rating for unmeasured, and the one after it too', () => {
+    const games = [played('1', 0, 1200), played('2', 5, undefined), played('3', 10, 1206)];
+    expect(deltas(games)).toEqual([undefined, undefined, undefined]);
   });
 });
 

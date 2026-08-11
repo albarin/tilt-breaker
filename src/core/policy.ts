@@ -51,6 +51,25 @@ export function tallyOf(state: DayState, gameType: GameType): Tally {
   return tally;
 }
 
+/**
+ * What the day has done to your rating in one game type, or `null` when it cannot be said.
+ *
+ * Added up from the games rather than read off the first and last, so it does not care
+ * what order the archive hands them over in.
+ *
+ * One game whose change is unknown makes the whole day unknown. A total quietly missing a
+ * game is worse than no total: it still looks like an answer, and on the day this matters
+ * most — the one you came to the popup to check — it would be the game you just lost.
+ */
+export function ratingDeltaOf(state: DayState, gameType: GameType): number | null {
+  let total = 0;
+  for (const game of gamesOf(state, gameType)) {
+    if (game.ratingDelta === undefined) return null;
+    total += game.ratingDelta;
+  }
+  return total;
+}
+
 /** Consecutive losses at the end of the day, and when the last one happened. */
 export function lossStreakOf(
   state: DayState,
@@ -157,6 +176,8 @@ export type GameTypeSummary = {
   limit: number | null;
   /** Wins, losses and draws behind `used`. The three always add up to it. */
   tally: Tally;
+  /** Rating gained or lost today, or `null` when one of the games cannot be measured. */
+  ratingDelta: number | null;
   lossStreak: number;
   decision: Decision;
 };
@@ -175,6 +196,7 @@ export function summarize(state: DayState, settings: Settings, now: number): Gam
     used: countOf(state, gameType),
     limit: settings.limits[gameType],
     tally: tallyOf(state, gameType),
+    ratingDelta: ratingDeltaOf(state, gameType),
     lossStreak: lossStreakOf(state, gameType).losses,
     decision: evaluate({ state, settings, gameType, now, includeGap: false }),
   }));

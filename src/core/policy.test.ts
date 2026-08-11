@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countOf, evaluate, lossStreakOf, summarize, tallyOf } from './policy';
+import { countOf, evaluate, lossStreakOf, ratingDeltaOf, summarize, tallyOf } from './policy';
 import {
   COOLDOWN_MINUTES,
   DEFAULT_SETTINGS,
@@ -16,8 +16,19 @@ const NOON = at('2026-08-08T12:00:00');
 
 let nextId = 0;
 
-function game(gameType: GameType, result: GameResult, endedAt: number): GameRecord {
-  return { id: `g${nextId++}`, gameType, endedAt, result };
+function game(
+  gameType: GameType,
+  result: GameResult,
+  endedAt: number,
+  ratingDelta?: number,
+): GameRecord {
+  return {
+    id: `g${nextId++}`,
+    gameType,
+    endedAt,
+    result,
+    ...(ratingDelta === undefined ? {} : { ratingDelta }),
+  };
 }
 
 function stateWith(games: GameRecord[]): DayState {
@@ -57,6 +68,49 @@ describe('tallyOf', () => {
     expect(blitz.wins + blitz.losses + blitz.draws).toBe(countOf(state, 'blitz'));
     expect(tallyOf(state, 'rapid')).toEqual({ wins: 1, losses: 0, draws: 0 });
     expect(tallyOf(state, 'bullet')).toEqual({ wins: 0, losses: 0, draws: 0 });
+  });
+});
+
+describe('ratingDeltaOf', () => {
+  it('adds up the day, per game type', () => {
+    const state = stateWith([
+      game('blitz', 'win', NOON, 8),
+      game('blitz', 'loss', NOON + 60_000, -7),
+      game('rapid', 'win', NOON + 120_000, 6),
+    ]);
+    expect(ratingDeltaOf(state, 'blitz')).toBe(1);
+    expect(ratingDeltaOf(state, 'rapid')).toBe(6);
+  });
+
+  /** No games is not "unknown": nothing was played, so nothing moved. */
+  it('is zero on a day with no games', () => {
+    expect(ratingDeltaOf(stateWith([]), 'blitz')).toBe(0);
+  });
+
+  it('carries a losing day as a negative', () => {
+    const state = stateWith([game('blitz', 'loss', NOON, -8), game('blitz', 'loss', NOON, -9)]);
+    expect(ratingDeltaOf(state, 'blitz')).toBe(-17);
+  });
+
+  /**
+   * The one that matters. A day missing one game's change must not report the sum of the
+   * rest: it would look like a full answer while being exactly one game wrong, and the
+   * game it is missing is as likely as not the one you opened the popup about.
+   */
+  it('refuses the whole day when one game cannot be measured', () => {
+    const state = stateWith([
+      game('blitz', 'win', NOON, 8),
+      game('blitz', 'loss', NOON + 60_000),
+      game('blitz', 'win', NOON + 120_000, 7),
+    ]);
+    expect(ratingDeltaOf(state, 'blitz')).toBeNull();
+  });
+
+  // An unmeasurable game in one type says nothing about another.
+  it('refuses only the game type that is short', () => {
+    const state = stateWith([game('blitz', 'win', NOON), game('rapid', 'win', NOON, 6)]);
+    expect(ratingDeltaOf(state, 'blitz')).toBeNull();
+    expect(ratingDeltaOf(state, 'rapid')).toBe(6);
   });
 });
 

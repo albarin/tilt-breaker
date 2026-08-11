@@ -15,6 +15,16 @@ export type GameRecord = {
   /** Epoch ms. The archive carries no start time for live games, and nothing needs one. */
   endedAt: number;
   result: GameResult;
+  /**
+   * What this game did to your rating, once it is known.
+   *
+   * Stored rather than derived, unlike every other count here, because it cannot be
+   * derived from a day: the archive reports the rating *after* each game and never the
+   * change, so the first game of the day can only be measured against one played
+   * yesterday. `undefined` means the archive did not reach back far enough to say — not
+   * that nothing moved, which is `0`.
+   */
+  ratingDelta?: number;
 };
 
 /** The daily quota resets at local midnight. Fixed on purpose, not configurable. */
