@@ -30,12 +30,11 @@ export const COLORS: Record<GameType, string> = {
  */
 let hhmm: Intl.DateTimeFormat | null = null;
 
-function clock(ms: number): string {
-  hhmm ??= new Intl.DateTimeFormat(browser.i18n.getUILanguage(), {
+function clock(): Intl.DateTimeFormat {
+  return (hhmm ??= new Intl.DateTimeFormat(browser.i18n.getUILanguage(), {
     hour: '2-digit',
     minute: '2-digit',
-  });
-  return hhmm.format(ms);
+  }));
 }
 
 /**
@@ -45,9 +44,18 @@ function clock(ms: number): string {
  * result. Neither travels — 24-hour clocks are not universal, and the `h` is a Spanish
  * convention that would be wrong on "4:00 PM". Now `Intl` reads the UI language for the
  * shape of the time, and the catalogue decides what wraps it.
+ *
+ * But the catalogue cannot make that call on its own, because it does not get to see the
+ * clock. The browser picks it by language — `es-MX` reads the same Spanish catalogue as
+ * `es-ES`, `h` and all — and `Intl` picks the shape by region, which for most of Latin
+ * America is 12-hour. Wrapping unconditionally is what produced "09:05 p.m.h". So the
+ * suffix is only asked for on a 24-hour clock, the only shape it was ever a convention
+ * for; on a 12-hour one the time is shown as `Intl` wrote it.
  */
 export function formatTime(ms: number): string {
-  return i18n.t('common.time', [clock(ms)]);
+  const format = clock();
+  const time = format.format(ms);
+  return format.resolvedOptions().hour12 === true ? time : i18n.t('common.time', [time]);
 }
 
 /** Why that game type is blocked, or `null` if it can be played. */

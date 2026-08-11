@@ -51,6 +51,25 @@ describe('formatTime', () => {
 
     expect(formatTime(at('2026-08-08T21:05:00'))).toMatch(/09:05\s?PM/i);
   });
+
+  it('appends the suffix a language writes by convention', async () => {
+    const formatTime = await speaking('es-ES', 'es');
+
+    expect(formatTime(at('2026-08-08T21:05:00'))).toBe('21:05h');
+  });
+
+  /**
+   * The two halves disagreeing is what this exists for. The browser picks the catalogue
+   * by language, so `es-MX` reads the same Spanish strings as `es-ES`, `h` and all, while
+   * `Intl` picks the clock by region and gives Latin America a 12-hour one. Appending
+   * regardless produced "09:05 p.m.h" for a good share of the extension's Spanish users,
+   * and no test in English could ever have seen it.
+   */
+  it('drops that suffix where the clock is not the one it belongs to', async () => {
+    const formatTime = await speaking('es-MX', 'es');
+
+    expect(formatTime(at('2026-08-08T21:05:00'))).toBe('09:05 p.m.');
+  });
 });
 
 describe('blockReason', () => {

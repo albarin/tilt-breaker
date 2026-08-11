@@ -5,7 +5,8 @@ extension:
   description: 'Corta la espiral de una partida más en chess.com: tope diario por modalidad, descanso entre partidas y sin revancha.'
 
 common:
-  # El sufijo que en inglés no existe: aquí las horas se escriben 21:30h.
+  # El sufijo que en inglés no existe: aquí las horas se escriben 21:30h. Solo se aplica
+  # con reloj de 24 horas: en es-MX o es-US, que son de 12, la hora sale tal cual.
   time: $1h
   lossStreak:
     1: 1 derrota seguida

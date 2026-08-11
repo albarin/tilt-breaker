@@ -12,7 +12,8 @@ extension:
 common:
   # Wraps an already locale-formatted clock time. English leaves it alone; Spanish and
   # Catalan append the h they write by convention. Never put the format itself here —
-  # Intl does that from the UI language.
+  # Intl does that from the UI language, and only reaches this line on a 24-hour clock:
+  # a suffix meant for "21:05" has no business on "09:05 p.m.". See `ui/format.ts`.
   time: $1
   # Shared between the popup's note and the overlay's title: it is one sentence, and the
   # two surfaces drifting apart in wording is exactly what sharing prevents.

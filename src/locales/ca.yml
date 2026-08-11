@@ -5,7 +5,8 @@ extension:
   description: "Talla l'espiral d'una partida més a chess.com: límit diari per modalitat, descans entre partides i sense revenja."
 
 common:
-  # El sufix que en anglès no hi és: aquí les hores s'escriuen 21:30h.
+  # El sufix que en anglès no hi és: aquí les hores s'escriuen 21:30h. Només s'aplica amb
+  # rellotge de 24 hores, l'únic que el català fa servir.
   time: $1h
   lossStreak:
     1: 1 derrota seguida
