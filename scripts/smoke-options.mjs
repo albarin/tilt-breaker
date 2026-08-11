@@ -93,6 +93,20 @@ class Page {
  */
 const messages = JSON.parse(await readFile(join(DIST, '_locales/en/messages.json'), 'utf8'));
 
+/**
+ * This page opens in a tab, not in the browser's small embedded dialog — it is a full
+ * form and the dialog crops it.
+ *
+ * Checked against the built manifest because the config cannot be trusted to say: WXT
+ * assembles `options_ui` from the entrypoint and assigns the whole object, so the same
+ * key set in `wxt.config.ts` reads as deliberate, changes nothing, and quietly leaves the
+ * default. It shipped that way in 1.2.0 with the config claiming otherwise.
+ */
+const manifest = JSON.parse(await readFile(join(DIST, 'manifest.json'), 'utf8'));
+if (manifest.options_ui?.open_in_tab !== true) {
+  throw new Error('options_ui.open_in_tab is not true: settings would open in the dialog');
+}
+
 /** chrome.storage, cloning like the browser does — the constraint the bug broke. */
 const storageDouble = (seedJson) => `(() => {
   const store = ${seedJson};

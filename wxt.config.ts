@@ -21,8 +21,8 @@ export default defineConfig({
     // in a language we do not ship.
     default_locale: 'en',
     permissions: ['storage', 'alarms'],
-    // In a tab rather than the small dialog: settings is a full form.
-    options_ui: { open_in_tab: true },
+    // `options_ui` is deliberately absent: WXT overwrites it from the options entrypoint,
+    // so it is declared in `entrypoints/options/index.html` where it is actually read.
     host_permissions: ['*://*.chess.com/*', 'https://api.chess.com/*'],
     browser_specific_settings: {
       gecko: {
