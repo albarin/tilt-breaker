@@ -28,9 +28,9 @@
     0 2px 4px 0 rgba(0, 0, 0, 0.1);
   color: #fff;
   font-family: inherit;
-  /* One grade under chess.com's own, which at these sizes reads heavier than it does on
-     their button. */
-  font-weight: 700;
+  /* Two grades under chess.com's own 800, which at these sizes reads heavier than it does
+     on their button. */
+  font-weight: 600;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
