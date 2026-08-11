@@ -17,6 +17,7 @@ common:
 popup:
   checking: Comprobando…
   networkError: No se ha podido contactar con chess.com. Estos son los últimos datos conocidos.
+  settling: Contando tu última partida…
   nextGame: Próxima partida a las $1
   # Victorias, empates y derrotas.
   wins: $1V

@@ -136,6 +136,12 @@ not walking back to the lobby. So the content script reports the moment one of y
 and the gap starts from there. The stored end never moves backwards, so the archive can
 only ever confirm it.
 
+The counts have no such shortcut — a game is counted when the archive says so — so that
+report also starts a chain of re-reads, at 4s, 8s, 15s, 30s and 60s, stopping the moment
+the game appears. Between the two, the day is knowably short by exactly that game, and
+both surfaces say so rather than showing a settled-looking number: the popup with
+"Counting your last game…", and by asking again every three seconds while it is open.
+
 Beyond that, the only thing read from the site is which button you clicked. `location.pathname` is
 polled every 400 ms to refresh the count on page changes; `history.pushState` is **not**
 patched, because from a content script's isolated world that patch never sees the page's

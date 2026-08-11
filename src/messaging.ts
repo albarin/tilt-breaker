@@ -29,6 +29,12 @@ export type View = {
   gapUntil?: number;
   /** Set when the API could not be consulted; the rows are the last thing we knew. */
   problem?: 'no-account' | 'network-error';
+  /**
+   * A game has ended and the archive has not published it yet, so the rows are short by
+   * exactly that one. Said out loud rather than left to be noticed: the alternative is
+   * numbers that look settled and are not.
+   */
+  settling?: true;
 };
 
 export type Status = {

@@ -76,6 +76,15 @@
         <p class="gap">{i18n.t('popup.nextGame', [formatTime(view.gapUntil)])}</p>
       {/if}
 
+      <!--
+        The counts below are short by the game that has just ended, and will be for a few
+        seconds more. Saying so is the difference between numbers that are behind and
+        numbers that are wrong — and the popup is asking again while this is on screen.
+      -->
+      {#if view.settling === true}
+        <p class="settling">{i18n.t('popup.settling')}</p>
+      {/if}
+
       <ul>
         {#each limited as row (row.gameType)}
           {@const blocked = !row.decision.allow}
@@ -304,6 +313,14 @@
     color: #e0c9a0;
     font-size: 1rem;
     font-weight: 600;
+  }
+
+  /* Quieter than the gap notice: that one is a rule being applied to you, this one is
+     the extension admitting it is still catching up. */
+  .settling {
+    margin: 0 0 0.7rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
   }
 
   .warning a {

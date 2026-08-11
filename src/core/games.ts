@@ -170,3 +170,43 @@ export function lastGameEnd(records: GameRecord[]): number | null {
   }
   return last;
 }
+
+/** The end of the newest game counted for the day, or `0` when none is. */
+export function newestCounted(games: Record<string, GameRecord>): number {
+  let newest = 0;
+  for (const game of Object.values(games)) if (game.endedAt > newest) newest = game.endedAt;
+  return newest;
+}
+
+/**
+ * How long a game is given to appear in the archive before we stop expecting it.
+ *
+ * It normally takes seconds. This is the outer edge of "any moment now", after which a
+ * game that has not shown up is more likely never to: an aborted game, or one the site
+ * decided not to publish.
+ */
+export const ARCHIVE_DELAY_MS = 5 * 60_000;
+
+/**
+ * Is the count knowably behind — a game has ended, and the archive has not published it?
+ *
+ * The content script reports the end of a game the moment it happens, and chess.com's
+ * archive catches up a few seconds later. In between, every count here is short by exactly
+ * the game you just finished, which is the one you opened the popup to see. Knowing that
+ * is what lets the popup say so, and the background keep looking.
+ *
+ * The game must belong to today for this to mean anything: at 00:01, a game from 23:58 is
+ * missing from today's count for a reason that has nothing to do with the archive.
+ */
+export function awaitingArchive(input: {
+  lastGameEndedAt: number | undefined;
+  counted: number;
+  dayStart: number;
+  now: number;
+}): boolean {
+  const { lastGameEndedAt, counted, dayStart, now } = input;
+  if (lastGameEndedAt === undefined) return false;
+  if (lastGameEndedAt < dayStart) return false;
+  if (lastGameEndedAt <= counted) return false;
+  return now - lastGameEndedAt < ARCHIVE_DELAY_MS;
+}

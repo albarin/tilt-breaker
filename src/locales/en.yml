@@ -28,6 +28,9 @@ common:
 popup:
   checking: Checking…
   networkError: Could not reach chess.com. This is the last data known.
+  # The archive publishes a finished game seconds after it ends. Until it does, the
+  # counts are short by exactly that game, and saying so beats looking settled.
+  settling: Counting your last game…
   nextGame: Next game at $1
   # The day's record. One letter each, so three of them fit under a bar: win, draw, loss.
   wins: $1W

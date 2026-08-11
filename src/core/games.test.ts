@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { gamesForDay, lastGameEnd, parseGameId, toRecord, toRecords, type ApiGame } from './games';
+import {
+  ARCHIVE_DELAY_MS,
+  awaitingArchive,
+  gamesForDay,
+  lastGameEnd,
+  newestCounted,
+  parseGameId,
+  toRecord,
+  toRecords,
+  type ApiGame,
+} from './games';
 
 const ME = 'crabinloan';
 const at = (iso: string) => new Date(iso).getTime();
@@ -228,5 +238,59 @@ describe('lastGameEnd', () => {
 
   it('is null with nothing to look at', () => {
     expect(ends([])).toBeNull();
+  });
+});
+
+describe('newestCounted', () => {
+  it("takes the latest end among the day's games", () => {
+    const games = build([
+      apiGame('1', { end_time: Math.floor(at('2026-08-08T10:00:00') / 1000) }),
+      apiGame('2', { end_time: Math.floor(at('2026-08-08T18:00:00') / 1000) }),
+    ]);
+    expect(newestCounted(games)).toBe(at('2026-08-08T18:00:00'));
+  });
+
+  it('is zero before anything is counted', () => {
+    expect(newestCounted({})).toBe(0);
+  });
+});
+
+/**
+ * The archive publishes a game seconds after it ends, and the content script reports it
+ * the moment it happens. In between, the count is short by exactly that game — which is
+ * the one the popup is opened to see, so it is worth knowing rather than guessing at.
+ */
+describe('awaitingArchive', () => {
+  const ended = at('2026-08-08T18:00:00');
+  const waiting = (overrides: Partial<Parameters<typeof awaitingArchive>[0]> = {}) =>
+    awaitingArchive({
+      lastGameEndedAt: ended,
+      counted: at('2026-08-08T17:00:00'),
+      dayStart: DAY_START,
+      now: ended + 10_000,
+      ...overrides,
+    });
+
+  it('a game ended and the count has not caught up', () => {
+    expect(waiting()).toBe(true);
+  });
+
+  it('the archive has it: nothing to wait for', () => {
+    expect(waiting({ counted: ended })).toBe(false);
+  });
+
+  /** After long enough it is not late, it is never coming: an aborted game, or one the
+      site chose not to publish. */
+  it('gives up rather than waiting forever', () => {
+    expect(waiting({ now: ended + ARCHIVE_DELAY_MS + 1 })).toBe(false);
+  });
+
+  /** At 00:01 a game from 23:58 is missing from today for a reason of its own. */
+  it("yesterday's game is not today's missing one", () => {
+    expect(waiting({ lastGameEndedAt: DAY_START - 60_000, counted: 0 })).toBe(false);
+  });
+
+  it('nothing has ever ended', () => {
+    expect(waiting({ lastGameEndedAt: undefined })).toBe(false);
   });
 });
