@@ -306,6 +306,11 @@
     {#if asking !== null}
       <h2>{i18n.t('options.quota.confirm.title', [NAMES[asking.gameType]])}</h2>
       <p>{i18n.t('options.quota.confirm.body', [asking.played])}</p>
+      <!--
+        Both are the extension's own button, one green and one red. The colour is the
+        difference, and it is the only one that should be: an option dressed as unclickable
+        is not a choice offered, and this one is.
+      -->
       <div class="choices">
         <button
           bind:this={keepButton}
@@ -314,7 +319,7 @@
         >
           {i18n.t('options.quota.confirm.keep')}
         </button>
-        <button class="raise" onclick={raiseAnyway}>
+        <button class="cc-button danger raise" onclick={raiseAnyway}>
           {i18n.t('options.quota.confirm.raise')}
         </button>
       </div>
@@ -500,28 +505,6 @@
     font: inherit;
     font-size: 0.9375rem;
     cursor: pointer;
-  }
-
-  /*
-   * Keeping the limit is the raised green button the extension uses everywhere else, and
-   * the one the dialog opens focused on; raising it is the quiet one beside it. Both
-   * work, and the difference between them is the whole reason this dialog exists — the
-   * easy path should be the one you came here to protect.
-   */
-  /* The red this extension already refuses in: the failed-save toast, and the bar of a
-     game type that is spent. Flat rather than raised, so the green beside it stays the
-     one your eye lands on. */
-  .raise {
-    border: 0;
-    /* The shape of the one next to it, without the lift. */
-    border-radius: 10px;
-    background: #b0574f;
-    color: #fff;
-    font-weight: 800;
-  }
-
-  .raise:hover {
-    background: #bd6159;
   }
 
   /* Its height is held whether or not there is anything to say, so the form does not
