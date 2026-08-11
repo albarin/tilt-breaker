@@ -502,7 +502,8 @@
      and the depth of the shared button, and this decides how big it is here. */
   .choices button {
     padding: 0.5rem 1.05rem;
-    font: inherit;
+    /* Not `font: inherit`: the shorthand would take the shared weight with it. */
+    font-family: inherit;
     font-size: 0.9375rem;
     cursor: pointer;
   }

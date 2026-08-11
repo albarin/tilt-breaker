@@ -7,6 +7,11 @@
  * base (chess.com sets `html { font-size: 10px }`, so `rem` would shrink it) and the popup
  * in `rem`, so each supplies its own padding, margin and font-size.
  *
+ * Supplies them one property at a time, though: `font: inherit` is a shorthand, and it
+ * resets the weight below to whatever the page inherits. The popup and the settings dialog
+ * both did that and both drew a button several grades lighter than this file says, which
+ * looks like nothing in particular until you put it next to the overlay's.
+ *
  * Read twice: as a stylesheet by the popup, and as text by the overlay, which needs it
  * inside a closed shadow root where a page stylesheet cannot reach.
  */
@@ -23,7 +28,9 @@
     0 2px 4px 0 rgba(0, 0, 0, 0.1);
   color: #fff;
   font-family: inherit;
-  font-weight: 800;
+  /* One grade under chess.com's own, which at these sizes reads heavier than it does on
+     their button. */
+  font-weight: 700;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }

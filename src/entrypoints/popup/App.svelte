@@ -349,7 +349,8 @@
     width: 100%;
     margin-top: 1.1rem;
     padding: 0.7rem 1rem;
-    font: inherit;
+    /* Not `font: inherit`: the shorthand would take the shared weight with it. */
+    font-family: inherit;
     font-size: 1rem;
   }
 </style>
