@@ -14,6 +14,7 @@
     "icons": "node scripts/make-icons.mjs",
     "test": "TZ=Europe/Madrid vitest run",
     "smoke": "wxt build && node scripts/smoke-options.mjs",
+    "screenshots": "wxt build && node scripts/make-screenshots.mjs",
     "test:watch": "TZ=Europe/Madrid vitest",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "format": "prettier --write .",
