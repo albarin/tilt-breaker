@@ -125,7 +125,7 @@ describe('syncDay', () => {
 
     expect(countOf(outcome.state, 'bullet')).toBe(0);
     // Asked fresh, not conditionally: the stamp belonged to the previous account.
-    expect(fetchImpl).toHaveBeenCalledWith(expect.any(String), { headers: {} });
+    expect(fetchImpl).toHaveBeenCalledWith(expect.any(String), { headers: {}, cache: 'no-store' });
   });
 
   it('resets on its own when the day changes', async () => {

@@ -104,7 +104,22 @@ describe('fetchGamesCovering', () => {
       await run(fetchImpl, { '2026-08': STAMP });
       expect(fetchImpl).toHaveBeenCalledWith(expect.any(String), {
         headers: { 'If-Modified-Since': STAMP },
+        cache: 'no-store',
       });
+    });
+
+    /**
+     * The archive is served `max-age=5`, so two requests inside five seconds — the sync a
+     * finished game triggers, then the popup opened right after — would be one request and
+     * one replay of its answer, both predating the game just played.
+     */
+    it('never reads the browser cache', async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(response({ games: [] }));
+      await run(fetchImpl);
+      expect(fetchImpl).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ cache: 'no-store' }),
+      );
     });
 
     // The archive runs close to a megabyte mid-month: the 304 is what makes polling it
@@ -136,7 +151,10 @@ describe('fetchGamesCovering', () => {
       expect(result.unchanged).toBe(false);
       expect(result.games.map((g) => g.url).sort()).toEqual(['new', 'old']);
       // The refetch must not send the stamp back, or it would just 304 again.
-      expect(fetchImpl).toHaveBeenLastCalledWith(expect.any(String), { headers: {} });
+      expect(fetchImpl).toHaveBeenLastCalledWith(expect.any(String), {
+        headers: {},
+        cache: 'no-store',
+      });
     });
   });
 });

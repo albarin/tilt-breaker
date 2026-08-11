@@ -82,6 +82,16 @@ async function fetchMonth(
 ): Promise<{ games: ApiGame[] | null; lastModified?: string }> {
   const response = await fetchImpl(archiveUrl(username, month), {
     headers: previous === undefined ? {} : { 'If-Modified-Since': previous },
+    /*
+     * Never the browser's copy. The archive is served `max-age=5`, so a request made
+     * within five seconds of the last one was answered from the HTTP cache without
+     * leaving the machine — and the request that lands in that window is the one that
+     * matters: the sync fired when a game ends, then the popup opened right after it.
+     * The game you just played would be missing from both, for no reason a user could
+     * see. Freshness here is `If-Modified-Since`, which costs a 304 and is ours to
+     * control.
+     */
+    cache: 'no-store',
   });
 
   if (response.status === 304) return { games: null, lastModified: previous };
