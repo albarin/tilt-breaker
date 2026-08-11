@@ -83,6 +83,18 @@
               ></div>
             </div>
 
+            <!--
+              How the games went, not just how many. Hidden at zero games: three zeroes
+              say nothing the "0/N" above has not already said.
+            -->
+            {#if row.used > 0}
+              <p class="tally">
+                <span class="win">{row.tally.wins}W</span>
+                <span class="draw">{row.tally.draws}D</span>
+                <span class="loss">{row.tally.losses}L</span>
+              </p>
+            {/if}
+
             {#if reason !== null}
               <p class="note">{reason}</p>
             {:else if row.lossStreak > 1}
@@ -203,6 +215,24 @@
     height: 100%;
     border-radius: inherit;
     transition: width 0.25s ease;
+  }
+
+  .tally {
+    display: flex;
+    gap: 0.7rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .tally .win {
+    color: #81b64c;
+  }
+
+  .tally .loss {
+    color: #e0a8a2;
   }
 
   .note {

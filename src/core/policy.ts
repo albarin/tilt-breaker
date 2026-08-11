@@ -32,6 +32,25 @@ export function countOf(state: DayState, gameType: GameType): number {
   return gamesOf(state, gameType).length;
 }
 
+/** How the day went for one game type. Named `Tally` to stay clear of TS's `Record`. */
+export type Tally = { wins: number; losses: number; draws: number };
+
+/**
+ * Wins, losses and draws for one game type today.
+ *
+ * Derived from the games like every other count, so it cannot drift from `countOf`: the
+ * three add up to it.
+ */
+export function tallyOf(state: DayState, gameType: GameType): Tally {
+  const tally: Tally = { wins: 0, losses: 0, draws: 0 };
+  for (const game of gamesOf(state, gameType)) {
+    if (game.result === 'win') tally.wins++;
+    else if (game.result === 'loss') tally.losses++;
+    else tally.draws++;
+  }
+  return tally;
+}
+
 /** Consecutive losses at the end of the day, and when the last one happened. */
 export function lossStreakOf(
   state: DayState,
@@ -136,6 +155,8 @@ export type GameTypeSummary = {
   gameType: GameType;
   used: number;
   limit: number | null;
+  /** Wins, losses and draws behind `used`. The three always add up to it. */
+  tally: Tally;
   lossStreak: number;
   decision: Decision;
 };
@@ -153,6 +174,7 @@ export function summarize(state: DayState, settings: Settings, now: number): Gam
     gameType,
     used: countOf(state, gameType),
     limit: settings.limits[gameType],
+    tally: tallyOf(state, gameType),
     lossStreak: lossStreakOf(state, gameType).losses,
     decision: evaluate({ state, settings, gameType, now, includeGap: false }),
   }));

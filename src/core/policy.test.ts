@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countOf, evaluate, lossStreakOf, summarize } from './policy';
+import { countOf, evaluate, lossStreakOf, summarize, tallyOf } from './policy';
 import {
   COOLDOWN_MINUTES,
   DEFAULT_SETTINGS,
@@ -39,6 +39,24 @@ describe('countOf', () => {
     expect(countOf(state, 'blitz')).toBe(2);
     expect(countOf(state, 'rapid')).toBe(1);
     expect(countOf(state, 'bullet')).toBe(0);
+  });
+});
+
+describe('tallyOf', () => {
+  it('splits the count into wins, losses and draws', () => {
+    const state = stateWith(streak('blitz', ['win', 'loss', 'draw', 'loss']));
+    expect(tallyOf(state, 'blitz')).toEqual({ wins: 1, losses: 2, draws: 1 });
+  });
+
+  it('adds up to the count, per game type', () => {
+    const state = stateWith([
+      ...streak('blitz', ['win', 'loss', 'draw']),
+      ...streak('rapid', ['win'], NOON + 10 * 60_000),
+    ]);
+    const blitz = tallyOf(state, 'blitz');
+    expect(blitz.wins + blitz.losses + blitz.draws).toBe(countOf(state, 'blitz'));
+    expect(tallyOf(state, 'rapid')).toEqual({ wins: 1, losses: 0, draws: 0 });
+    expect(tallyOf(state, 'bullet')).toEqual({ wins: 0, losses: 0, draws: 0 });
   });
 });
 
@@ -157,6 +175,7 @@ describe('summarize', () => {
     expect(rows.find((r) => r.gameType === 'blitz')).toMatchObject({
       used: 2,
       limit: 6,
+      tally: { wins: 1, losses: 1, draws: 0 },
       lossStreak: 1,
     });
   });
