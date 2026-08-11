@@ -4,6 +4,7 @@
   import { getSettings, setSettings } from '../../state/storage';
   import { i18n } from '#i18n';
   import { NO_ACCOUNT_HINT, noAccountAround, watchAccount } from '../../ui/account.svelte';
+  import { loadView } from '../../ui/load';
   import { NAMES } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
 
@@ -11,6 +12,38 @@
   let saveState = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   /** Bumped to rebuild the fields when a failed save has to undo what they show. */
   let formKey = $state(0);
+
+  /**
+   * Games played today per type, for the one question this page asks.
+   *
+   * Empty until the background answers, and empty for good if it cannot: without knowing
+   * what has been played there is nothing to warn about, and a page that guessed would be
+   * asking "are you sure?" about a day it knows nothing of.
+   */
+  let playedToday = $state<Partial<Record<GameType, number>>>({});
+
+  /** The raise waiting on an answer, and everything needed to apply or undo it. */
+  let asking = $state<{
+    gameType: GameType;
+    limits: Settings['limits'];
+    played: number;
+    input: HTMLInputElement;
+    stored: number | '';
+  } | null>(null);
+  let confirmDialog = $state<HTMLDialogElement | null>(null);
+  let keepButton = $state<HTMLButtonElement | null>(null);
+  /** Set by the raise button, so closing any other way counts as "no". */
+  let raising = false;
+
+  /*
+   * Focus lands on keeping the limit, and it has to be put there: left alone the browser
+   * focuses the dialog itself, which draws a ring around the whole card and leaves Enter
+   * doing nothing. Here it also means the quickest possible answer is the one that changes
+   * nothing.
+   */
+  $effect(() => {
+    if (asking !== null) keepButton?.focus();
+  });
 
   const { account, stop } = watchAccount();
 
@@ -24,6 +57,12 @@
   onMount(() => {
     void (async () => {
       settings = await getSettings();
+    })();
+    // Alongside, not before: the form is the point of this page and must not wait on the
+    // network to appear.
+    void (async () => {
+      const view = await loadView();
+      playedToday = Object.fromEntries(view.rows.map((row) => [row.gameType, row.used]));
     })();
     return stop;
   });
@@ -85,8 +124,54 @@
     // The plain object, not `settings.limits` read back: reactive state hands out a proxy,
     // and storage cannot clone one.
     const limits = { ...settings.limits, [gameType]: value };
+
+    // The one edit on this page that undoes what the extension is for, made at the one
+    // moment it is most tempting: you have run out, and the way to keep playing is right
+    // here. It is still your dial to turn — but not by accident, and not without the
+    // number you have already played being said out loud.
+    if (raisesASpentLimit(gameType, value)) {
+      asking = { gameType, limits, played: playedToday[gameType] ?? 0, input, stored };
+      confirmDialog?.showModal();
+      return;
+    }
+    apply(limits);
+  }
+
+  function apply(limits: Settings['limits']) {
+    if (settings === null) return;
     settings.limits = limits;
     void save({ limits });
+  }
+
+  /**
+   * Is this raising a limit that today has already reached?
+   *
+   * A limit of zero counts as reached: it is "no games of this type today", and raising it
+   * at six in the evening is the same decision as any other. Blank — no limit at all — is
+   * the largest raise there is, so it asks too.
+   */
+  function raisesASpentLimit(gameType: GameType, next: number | null): boolean {
+    if (settings === null) return false;
+    const played = playedToday[gameType];
+    const current = settings.limits[gameType];
+    if (played === undefined || current === null) return false;
+    if (played < current) return false;
+    return next === null || next > current;
+  }
+
+  function raiseAnyway() {
+    if (asking === null) return;
+    const { limits } = asking;
+    raising = true;
+    confirmDialog?.close();
+    apply(limits);
+  }
+
+  /** Any way out other than the raise button puts the field back to what is stored. */
+  function dismissed() {
+    if (asking !== null && !raising) revert(asking.input, asking.stored);
+    asking = null;
+    raising = false;
   }
 
   /**
@@ -212,6 +297,26 @@
     The live region is the container, not the toast, so it is already there to announce
     what appears inside it.
   -->
+  <!--
+    A question, never a refusal: the limits are yours. It is here because the pause is the
+    whole of it — the same few seconds the blocked rematch button buys, spent on the dial
+    instead of the board.
+  -->
+  <dialog bind:this={confirmDialog} onclose={dismissed}>
+    {#if asking !== null}
+      <h2>{i18n.t('options.quota.confirm.title', [NAMES[asking.gameType]])}</h2>
+      <p>{i18n.t('options.quota.confirm.body', [asking.played])}</p>
+      <div class="choices">
+        <button bind:this={keepButton} class="keep" onclick={() => confirmDialog?.close()}>
+          {i18n.t('options.quota.confirm.keep')}
+        </button>
+        <button class="raise" onclick={raiseAnyway}>
+          {i18n.t('options.quota.confirm.raise')}
+        </button>
+      </div>
+    {/if}
+  </dialog>
+
   <footer class="status" role="status">
     {#if saveState !== 'idle'}
       <p class="toast" class:failed={saveState === 'error'}>
@@ -336,6 +441,78 @@
     width: 1.15rem;
     height: 1.15rem;
     accent-color: var(--green);
+  }
+
+  /*
+   * The confirmation. It sits in the top layer, so it costs the form no height — which
+   * matters here, where every pixel is budgeted against the dialog the page itself is
+   * drawn in.
+   */
+  dialog {
+    max-width: 19rem;
+    margin: auto;
+    padding: 1.1rem 1.2rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  dialog::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  /* The card is not what you are choosing between; the buttons are. */
+  dialog:focus {
+    outline: none;
+  }
+
+  /* A sentence, not one of the form's section labels. */
+  dialog h2 {
+    margin: 0 0 0.45rem;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 650;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  dialog p {
+    margin: 0 0 0.9rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .choices {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .choices button {
+    padding: 0.4rem 0.85rem;
+    border-radius: 0.3rem;
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /*
+   * Keeping the limit is the loud button and the one the dialog opens focused on; raising
+   * it is quiet and to the side. Both work, and the difference between them is the whole
+   * reason this dialog exists — the easy path should be the one you came here to protect.
+   */
+  .keep {
+    border: 0;
+    background: var(--green);
+    color: #fff;
+  }
+
+  .raise {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
   }
 
   /* Its height is held whether or not there is anything to say, so the form does not

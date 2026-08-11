@@ -44,6 +44,13 @@ options:
     hint: Most games you may play per game type.
     hintBlank: Leave blank for no limit.
     placeholder: no limit
+    # Asked before raising a limit already spent today. $1 in the title is the game type,
+    # never translated; $1 in the body is how many games that is.
+    confirm:
+      title: Your $1 is spent for today
+      body: You have played $1 games. Raising the limit is the decision this exists to slow down, and it takes effect now rather than tomorrow.
+      keep: Leave it
+      raise: Raise it anyway
   gap:
     heading: Between games
     hint: Minutes you must wait after finishing a game, whatever its type.

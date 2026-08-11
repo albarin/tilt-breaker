@@ -38,8 +38,38 @@ function edit(input: HTMLInputElement, value: string) {
 
 const toast = () => document.querySelector('.toast')?.textContent?.trim() ?? null;
 
+const confirmation = () => document.querySelector('dialog') as HTMLDialogElement;
+const choice = (which: 'keep' | 'raise') =>
+  document.querySelector(`.${which}`) as HTMLButtonElement | null;
+
+/**
+ * What the background says you have played today. The page asks for it on mount, and
+ * without an answer it never questions an edit — so a test about the question has to
+ * supply one.
+ */
+function playedToday(used: Partial<Record<'bullet' | 'blitz' | 'rapid', number>>) {
+  // `as never`: the fake types its answer as void, and the real one answers a Status.
+  const answer = {
+    decisions: {},
+    blockRematch: true,
+    view: {
+      rows: Object.entries(used).map(([gameType, played]) => ({
+        gameType,
+        used: played,
+        limit: null,
+        tally: { wins: 0, draws: 0, losses: played },
+        ratingDelta: null,
+        lossStreak: 0,
+        decision: { allow: true },
+      })),
+    },
+  };
+  vi.spyOn(fakeBrowser.runtime, 'sendMessage').mockResolvedValue(answer as never);
+}
+
 beforeEach(() => {
   fakeBrowser.reset();
+  vi.restoreAllMocks();
   document.body.innerHTML = '';
 });
 
@@ -120,6 +150,88 @@ describe('the settings page', () => {
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
 
     await vi.waitFor(async () => expect((await getSettings()).blockRematch).toBe(false));
+  });
+
+  /**
+   * Raising a quota you have already spent is the edit this whole extension exists to
+   * interrupt, and it is made at the worst possible moment: you have run out, and the dial
+   * is right there. It is still allowed — it just has to be meant.
+   */
+  describe('raising a limit already spent today', () => {
+    it('asks first, and saves nothing until it is answered', async () => {
+      playedToday({ bullet: 8 });
+      await open();
+      await vi.waitFor(() => expect(choice('keep')).toBeNull());
+
+      edit(field('bullet'), '12');
+
+      await vi.waitFor(() => expect(confirmation().open).toBe(true));
+      expect((await getSettings()).limits.bullet).toBe(8);
+    });
+
+    it('saying no puts the field back', async () => {
+      playedToday({ bullet: 8 });
+      await open();
+      edit(field('bullet'), '12');
+
+      await vi.waitFor(() => expect(choice('keep')).not.toBeNull());
+      choice('keep')!.click();
+
+      await vi.waitFor(() => expect(field('bullet').value).toBe('8'));
+      expect((await getSettings()).limits.bullet).toBe(8);
+    });
+
+    it('saying yes raises it', async () => {
+      playedToday({ bullet: 8 });
+      await open();
+      edit(field('bullet'), '12');
+
+      await vi.waitFor(() => expect(choice('raise')).not.toBeNull());
+      choice('raise')!.click();
+
+      await vi.waitFor(async () => expect((await getSettings()).limits.bullet).toBe(12));
+    });
+
+    /** No limit at all is the largest raise there is. */
+    it('clearing it asks too', async () => {
+      playedToday({ bullet: 8 });
+      await open();
+      edit(field('bullet'), '');
+
+      await vi.waitFor(() => expect(confirmation().open).toBe(true));
+      expect((await getSettings()).limits.bullet).toBe(8);
+    });
+
+    it('lowering it needs no question', async () => {
+      playedToday({ bullet: 8 });
+      await open();
+      edit(field('bullet'), '4');
+
+      await vi.waitFor(async () => expect((await getSettings()).limits.bullet).toBe(4));
+      expect(confirmation().open).toBe(false);
+    });
+
+    it('a type with games left is asked nothing', async () => {
+      playedToday({ bullet: 2 });
+      await open();
+      edit(field('bullet'), '12');
+
+      await vi.waitFor(async () => expect((await getSettings()).limits.bullet).toBe(12));
+      expect(confirmation().open).toBe(false);
+    });
+
+    /**
+     * The background cannot always be reached, and a page that guessed would be asking
+     * "are you sure?" about a day it knows nothing about.
+     */
+    it('with nothing known about today, nothing is questioned', async () => {
+      vi.spyOn(fakeBrowser.runtime, 'sendMessage').mockRejectedValue(new Error('no background'));
+      await open();
+      edit(field('bullet'), '12');
+
+      await vi.waitFor(async () => expect((await getSettings()).limits.bullet).toBe(12));
+      expect(confirmation().open).toBe(false);
+    });
   });
 
   /** A write that fails must say so, not leave "Saving…" up as though it were still trying. */

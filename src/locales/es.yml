@@ -33,6 +33,11 @@ options:
     hint: Máximo de partidas que puedes jugar por modalidad.
     hintBlank: Déjalo en blanco para no poner límite.
     placeholder: sin límite
+    confirm:
+      title: Se acabó tu $1 de hoy
+      body: Has jugado $1 partidas. Subir el límite es la decisión que esto existe para frenar, y se aplica ahora, no mañana.
+      keep: Déjalo
+      raise: Súbelo igualmente
   gap:
     heading: Entre partidas
     hint: Minutos que debes esperar al terminar una partida, sea de la modalidad que sea.

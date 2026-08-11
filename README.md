@@ -35,6 +35,9 @@ into your rapid.
 - **The blocking screen never names another game type**, and the popup only shows the
   ones with a quota. Saying "rapid is still available" mid-impulse is an invitation to
   keep playing, not a consolation.
+- **Raising a limit you have already spent asks first.** Not a refusal — the dial is
+  yours — but that edit is made at the one moment it is most tempting, so it costs a
+  question with the number of games you have played today in it.
 - **No escape hatch.** There is no button to lift the limit, no "observe only" mode, no
   username to configure. Any of the three would be a one-click shortcut around the very
   thing you asked for. If the count is ever wrong, the way out is disabling the extension

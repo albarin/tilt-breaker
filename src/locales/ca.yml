@@ -33,6 +33,11 @@ options:
     hint: Màxim de partides que pots jugar per modalitat.
     hintBlank: Deixa-ho en blanc per no posar-hi límit.
     placeholder: sense límit
+    confirm:
+      title: S'ha acabat el teu $1 d'avui
+      body: Has jugat $1 partides. Pujar el límit és la decisió que això existeix per frenar, i s'aplica ara, no demà.
+      keep: Deixa-ho
+      raise: Puja'l igualment
   gap:
     heading: Entre partides
     hint: Minuts que has d'esperar en acabar una partida, sigui de la modalitat que sigui.
