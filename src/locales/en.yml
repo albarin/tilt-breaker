@@ -48,7 +48,7 @@ options:
     # never translated; $1 in the body is how many games that is.
     confirm:
       title: Your $1 is spent for today
-      body: You have played $1 games. Raising the limit is the decision this exists to slow down, and it takes effect now rather than tomorrow.
+      body: You have played $1 today. You chose this limit for a day like this one.
       keep: Leave it
       raise: Raise it anyway
   gap:

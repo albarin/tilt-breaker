@@ -35,7 +35,7 @@ options:
     placeholder: sense límit
     confirm:
       title: S'ha acabat el teu $1 d'avui
-      body: Has jugat $1 partides. Pujar el límit és la decisió que això existeix per frenar, i s'aplica ara, no demà.
+      body: Has jugat $1 avui. Vas posar aquest límit per a un dia com aquest.
       keep: Deixa-ho
       raise: Puja'l igualment
   gap:

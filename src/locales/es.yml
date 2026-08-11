@@ -35,7 +35,7 @@ options:
     placeholder: sin límite
     confirm:
       title: Se acabó tu $1 de hoy
-      body: Has jugado $1 partidas. Subir el límite es la decisión que esto existe para frenar, y se aplica ahora, no mañana.
+      body: Has jugado $1 hoy. Pusiste este límite para un día como este.
       keep: Déjalo
       raise: Súbelo igualmente
   gap:
