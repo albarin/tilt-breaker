@@ -1,7 +1,7 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { avatarItem, detectedUsernameItem } from '../state/storage';
+import { avatarItem, detectedUsernameItem, ratingsItem } from '../state/storage';
 import { watchAccount } from './account.svelte';
 
 beforeEach(() => {
@@ -54,6 +54,33 @@ describe('watchAccount', () => {
     account.dropAvatar();
     flushSync();
     expect(account.avatar).toBeNull();
+    stop();
+  });
+
+  it('carries the ratings of the account on screen', async () => {
+    await detectedUsernameItem.setValue('crabinloan');
+    await ratingsItem.setValue({ username: 'crabinloan', ratings: { bullet: 1204 } });
+
+    const { account, stop } = watchAccount();
+    await vi.waitFor(() => expect(account.ratings).toEqual({ bullet: 1204 }));
+    stop();
+  });
+
+  /**
+   * The name and the ratings are stored apart and land in either order, so a sign-in
+   * whose fetch has not caught up must show nothing rather than the previous player's
+   * numbers beside your game types.
+   */
+  it('shows nothing while the stored ratings belong to someone else', async () => {
+    await detectedUsernameItem.setValue('crabinloan');
+    await ratingsItem.setValue({ username: 'someoneelse', ratings: { bullet: 2400 } });
+
+    const { account, stop } = watchAccount();
+    await vi.waitFor(() => expect(account.name).toBe('crabinloan'));
+    expect(account.ratings).toEqual({});
+
+    await ratingsItem.setValue({ username: 'crabinloan', ratings: { bullet: 1204 } });
+    await vi.waitFor(() => expect(account.ratings).toEqual({ bullet: 1204 }));
     stop();
   });
 

@@ -3,11 +3,12 @@ import { awaitingArchive, newestCounted } from '../core/games';
 import { dayKeyOf, dayStartMs } from '../core/day';
 import { DAY_RESET_HOUR, GAME_TYPES, type GameType } from '../core/types';
 import type { Message, Status } from '../messaging';
-import { fetchAvatar } from '../api/chesscom-api';
+import { fetchAvatar, fetchRatings } from '../api/chesscom-api';
 import {
   avatarItem,
   detectedUsernameItem,
   getSettings,
+  ratingsItem,
   rememberDetectedUsername,
   rememberLastGameEnd,
 } from '../state/storage';
@@ -73,7 +74,8 @@ async function refresh(): Promise<void> {
   // Picks up an avatar that a failed fetch left missing. Without this, one bad request
   // would leave it blank until the account changed.
   const username = await detectedUsernameItem.getValue();
-  if (username !== null) await refreshAvatar(username, false);
+  if (username === null) return;
+  await Promise.all([refreshAvatar(username, false), refreshRatings(username, true)]);
 }
 
 /**
@@ -93,7 +95,14 @@ async function catchUp(counted: number): Promise<void> {
   for (const delay of CATCH_UP_MS) {
     await new Promise((done) => setTimeout(done, delay));
     const outcome = await syncDay({ now: Date.now(), force: true });
-    if (newestCounted(outcome.state.games) > counted) return;
+    if (newestCounted(outcome.state.games) > counted) {
+      // That game moved a rating, and this is the moment it is published. Read again now
+      // rather than at the next half-hourly refresh: the popup you open straight after a
+      // game is the one where a stale number would be noticed.
+      const username = await detectedUsernameItem.getValue();
+      if (username !== null) void refreshRatings(username, true);
+      return;
+    }
   }
 }
 
@@ -101,6 +110,21 @@ async function catchUp(counted: number): Promise<void> {
 async function refreshAvatar(username: string, accountChanged: boolean): Promise<void> {
   if (!accountChanged && (await avatarItem.getValue()) !== null) return;
   await avatarItem.setValue(await fetchAvatar(username));
+}
+
+/**
+ * Ratings for the account, refetched rather than fetched once like the avatar: they are
+ * the one part of a profile that moves, and they move for exactly the games being counted.
+ *
+ * Unforced it only fills a gap — a fresh install, or a different sign-in — because it runs
+ * off every message the content script sends. What keeps it current is the two moments
+ * that can have changed it: the scheduled refresh, and a game landing in the archive.
+ */
+async function refreshRatings(username: string, force: boolean): Promise<void> {
+  if (!force && (await ratingsItem.getValue())?.username === username) return;
+
+  const ratings = await fetchRatings(username);
+  if (ratings !== null) await ratingsItem.setValue({ username, ratings });
 }
 
 async function handle(message: Message): Promise<Status> {
@@ -114,7 +138,10 @@ async function handle(message: Message): Promise<Status> {
   const accountChanged =
     message.username != null && (await rememberDetectedUsername(message.username));
 
-  if (message.username != null) void refreshAvatar(message.username, accountChanged);
+  if (message.username != null) {
+    void refreshAvatar(message.username, accountChanged);
+    void refreshRatings(message.username, accountChanged);
+  }
 
   // Recorded before asking the API, which will not know about it for a few seconds yet.
   // rememberLastGameEnd never moves backwards, so the archive can only confirm this.

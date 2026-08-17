@@ -74,7 +74,10 @@ what tells them apart — and quotas apply from the first moment.
 To check the count adds up, open the popup: it already shows what you have played today
 without waiting or playing, because it comes from the API. Beside each count it shows how
 those games went — wins, draws, losses — and what they did to your rating, which is the
-other half of the answer to how the day is going.
+other half of the answer to how the day is going. Your current rating sits beside each
+game type's name, small and muted: the number the day's swing is a swing in, read from
+`/pub/player/{username}/stats` so it is there for a game type you have not played all
+month.
 
 ## What you can change
 

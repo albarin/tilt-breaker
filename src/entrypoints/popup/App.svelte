@@ -89,9 +89,21 @@
         {#each limited as row (row.gameType)}
           {@const blocked = !row.decision.allow}
           {@const note = blockNote(row)}
+          {@const rating = account.ratings[row.gameType]}
           <li class:blocked>
             <div class="row">
-              <span class="name"><Icon gameType={row.gameType} />{NAMES[row.gameType]}</span>
+              <!--
+                The rating rides with the name, small and muted: it is context for the
+                count beside it, not a number the day is being judged by — what today did
+                to it is already on the tally line below, where the judging belongs.
+
+                Absent for a game type you have never played, and absent until the profile
+                has been read. The name simply stands alone, as it did before.
+              -->
+              <span class="name">
+                <Icon gameType={row.gameType} />{NAMES[row.gameType]}
+                {#if rating !== undefined}<span class="elo">{rating}</span>{/if}
+              </span>
               <span class="count">{row.used}<span class="of">/{row.limit}</span></span>
             </div>
 
@@ -234,6 +246,17 @@
     gap: 0.45rem;
     font-size: 1.0625rem;
     font-weight: 600;
+  }
+
+  /*
+    Deliberately quieter than everything around it — smaller than the tally, muted like
+    the "/6" — so the row still reads count first and rating only if you look for it.
+  */
+  .elo {
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
 
   .count {

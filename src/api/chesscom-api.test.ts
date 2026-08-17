@@ -3,6 +3,7 @@ import {
   archiveUrl,
   fetchAvatar,
   fetchGamesCovering,
+  fetchRatings,
   monthKey,
   monthsCovering,
 } from './chesscom-api';
@@ -186,5 +187,59 @@ describe('fetchAvatar', () => {
 
     const broken = vi.fn().mockRejectedValue(new Error('offline'));
     await expect(fetchAvatar('alba', broken)).resolves.toBeNull();
+  });
+});
+
+describe('fetchRatings', () => {
+  const stats = (body: unknown) => vi.fn().mockResolvedValue(response(body));
+
+  it('reads the live rating of each game type off the profile', async () => {
+    const fetchImpl = stats({
+      chess_bullet: { last: { rating: 1204, rd: 30 }, best: { rating: 1310 } },
+      chess_blitz: { last: { rating: 987 } },
+      chess_rapid: { last: { rating: 1455 } },
+    });
+
+    await expect(fetchRatings('Alba', fetchImpl)).resolves.toEqual({
+      bullet: 1204,
+      blitz: 987,
+      rapid: 1455,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith('https://api.chess.com/pub/player/alba/stats');
+  });
+
+  /**
+   * `best` is a record and `daily` is not a game type we limit, so neither may be read as
+   * "what you are rated" — that is `last`, and only for the three live types.
+   */
+  it('ignores the rest of the profile', async () => {
+    const fetchImpl = stats({
+      chess_daily: { last: { rating: 1600 } },
+      chess_blitz: { best: { rating: 1500 } },
+      tactics: { highest: { rating: 2000 } },
+    });
+    await expect(fetchRatings('alba', fetchImpl)).resolves.toEqual({});
+  });
+
+  /**
+   * A game type you have never played has no rating, and the popup leaves the name to
+   * stand alone. Sending a `0` would put a number there that you are not rated.
+   */
+  it('leaves out a game type the account has never played', async () => {
+    const fetchImpl = stats({ chess_blitz: { last: { rating: 987 } } });
+    await expect(fetchRatings('alba', fetchImpl)).resolves.toEqual({ blitz: 987 });
+  });
+
+  /**
+   * Decoration, like the avatar: it shares this client with the counting, which must not
+   * be disturbed by it. `null` is the caller's cue to keep the last ratings it knew —
+   * `{}` would mean "rated in nothing", and would wipe three numbers off the popup.
+   */
+  it('never throws, whatever goes wrong', async () => {
+    const notFound = vi.fn().mockResolvedValue(response({}, 404));
+    await expect(fetchRatings('alba', notFound)).resolves.toBeNull();
+
+    const broken = vi.fn().mockRejectedValue(new Error('offline'));
+    await expect(fetchRatings('alba', broken)).resolves.toBeNull();
   });
 });

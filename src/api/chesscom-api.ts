@@ -1,4 +1,5 @@
 import type { ApiGame } from '../core/games';
+import { GAME_TYPES, type GameType } from '../core/types';
 
 /**
  * Client for chess.com's public monthly archive.
@@ -171,6 +172,44 @@ export async function fetchAvatar(
     if (!response.ok) return null;
     const body = (await response.json()) as { avatar?: string };
     return body.avatar ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** What you are rated in each game type. A type you have never played has no entry. */
+export type Ratings = Partial<Record<GameType, number>>;
+
+/**
+ * The account's current rating per game type, or `null` if the profile cannot be read.
+ *
+ * `https://api.chess.com/pub/player/{username}/stats`, which is a second endpoint on
+ * purpose. The archive already carries the rating after every game, so today's number
+ * could be read off the last game of each type — but only for the types played in the
+ * month it covers, which on the first of the month is none of them and mid-month is
+ * whichever ones you happen to have touched. This one answers for a game type you have
+ * not played in a year, which is the only way a rating can sit beside all three names.
+ *
+ * Never throws, for the reason `fetchAvatar` does not: a rating beside a name is
+ * decoration, and it shares this client with the counting, which must not be disturbed by
+ * it. A missing type is left out rather than sent as `0` — "never played" and "rated 0"
+ * are not the same thing, and only one of them is true.
+ */
+export async function fetchRatings(
+  username: string,
+  fetchImpl: Fetcher = fetch,
+): Promise<Ratings | null> {
+  try {
+    const response = await fetchImpl(`${playerUrl(username)}/stats`);
+    if (!response.ok) return null;
+
+    const body = (await response.json()) as Record<string, { last?: { rating?: number } }>;
+    const ratings: Ratings = {};
+    for (const gameType of GAME_TYPES) {
+      const rating = body[`chess_${gameType}`]?.last?.rating;
+      if (typeof rating === 'number') ratings[gameType] = rating;
+    }
+    return ratings;
   } catch {
     return null;
   }

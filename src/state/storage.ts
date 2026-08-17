@@ -1,4 +1,5 @@
 import { storage } from 'wxt/utils/storage';
+import type { Ratings } from '../api/chesscom-api';
 import { dayKeyOf } from '../core/day';
 import { DAY_RESET_HOUR, DEFAULT_SETTINGS, type GameRecord, type Settings } from '../core/types';
 
@@ -36,6 +37,22 @@ const snapshotItem = storage.defineItem<DaySnapshot | null>('local:daySnapshot',
 
 /** Avatar of the detected account. Purely decorative, so it may well be `null`. */
 export const avatarItem = storage.defineItem<string | null>('local:avatar', { fallback: null });
+
+/**
+ * What the detected account is rated in each game type, and whose ratings they are.
+ *
+ * Carries the account for the reason the day snapshot does: signing in as someone else
+ * must not leave their numbers beside your game types. The name is the whole check —
+ * a stored rating is shown only while it still belongs to the account on screen.
+ *
+ * Written only by a fetch that succeeded, so a lost connection leaves the last rating we
+ * knew where it is instead of blanking a row that was right a minute ago.
+ */
+export type StoredRatings = { username: string; ratings: Ratings };
+
+export const ratingsItem = storage.defineItem<StoredRatings | null>('local:ratings', {
+  fallback: null,
+});
 
 /**
  * End of the most recent game we have ever seen, across days.
