@@ -51,18 +51,24 @@ In `store/screenshots/`, at the 1280×800 the dashboard wants. Suggested order:
    what you are rated in each, how those games went and what they did to that rating,
    blitz spent, and the wait until the next game. The page behind is dimmed so the popup
    reads as the subject; nothing in the interface is faked.
-2. **`2-rematch-blocked.jpg`** — the blocking screen after a game, produced by the real
-   overlay code running on a real chess.com page.
-3. **`3-settings.jpg`** — everything that can be configured, which is little on purpose.
+2. **`2-quota-spent.jpg`** — the day's rapid quota spent, and the lobby's "Start Game"
+   refused. The one image of the extension doing the thing it exists to do, which is why it
+   comes second: the popup says what the day looks like, this says what happens next.
+3. **`3-rematch-blocked.jpg`** — the same screen after a game, on the button that turns one
+   game into five.
+4. **`4-settings.jpg`** — everything that can be configured, which is little on purpose.
 
-The chess.com behind the first two was captured against the live site; the popup and the
-settings page are the built bundle rendered at its own size, since neither can be opened as
-a page to capture. So they drift whenever the interface does, and `pnpm screenshots` redoes
-the first and the third from a fresh build — run it before any submission that follows a
-visual change. The second one needs a real game to end and is not made by a script.
+The chess.com behind the first three was captured against the live site; the popup, the
+blocking screen and the settings page are the built bundle, since none of them can be
+opened as a page to capture. So they drift whenever the interface does, and
+`pnpm screenshots` redoes the first, second and fourth from a fresh build — run it before
+any submission that follows a visual change. The third needs a real game to end and is not
+made by a script.
 
-`store/backdrop-chesscom.jpg` is the live-site capture the popup is composited onto. It is
-kept out of `screenshots/` so nothing uploads it by mistake.
+The two live-site captures the interface is composited onto are kept out of `screenshots/`
+so nothing uploads them by mistake: `store/backdrop-chesscom.jpg` behind the popup, and
+`store/backdrop-lobby.jpg` — a signed-out lobby, so no account of anyone's is in it —
+behind the blocking screen.
 
 ## Privacy practices tab
 

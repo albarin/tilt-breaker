@@ -12,13 +12,16 @@
  *
  * What it renders is the shipped bundle. Only the browser around it is faked: storage, the
  * catalogue, and the background's answer, all seeded below with a plausible evening.
- * `2-rematch-blocked.jpg` is not made here — it is the blocking overlay running on the
- * real site, which needs a real game to end, and no seeded state can stand in for that.
+ * `3-rematch-blocked.jpg` is not made here — it is the blocking overlay running on the
+ * real site after a real game, and no seeded state can stand in for a game ending.
  *
- * The popup is composited over `store/backdrop-chesscom.jpg`, a capture of the live site.
- * That capture has the 1.2.0 popup baked into it, so the new panel has to cover the old
- * one completely or the shot ships two popups; `LEGACY_PANEL` is that old panel's box and
- * the coverage is checked before anything is written.
+ * Two captures of the live site are composited under the interface. The popup goes over
+ * `store/backdrop-chesscom.jpg`, which has the 1.2.0 popup baked into it, so the new panel
+ * has to cover the old one completely or the shot ships two popups; `LEGACY_PANEL` is that
+ * old panel's box and the coverage is checked before anything is written. The blocking
+ * screen goes over `store/backdrop-lobby.jpg`, a signed-out lobby captured with the ad slot
+ * refused at the network — no account of anyone's in it, and no upsell for a listing image
+ * to carry.
  *
  * Needs Google Chrome installed, and the network for the avatar — which is fetched from
  * chess.com's CDN exactly as the extension fetches it. It fails rather than quietly
@@ -26,12 +29,13 @@
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { launch, serve } from './chrome.mjs';
+import { launch, serve, sleep } from './chrome.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const DIST = join(ROOT, '.output/chrome-mv3');
 const SHOTS = join(ROOT, 'store/screenshots');
 const BACKDROP = join(ROOT, 'store/backdrop-chesscom.jpg');
+const LOBBY = join(ROOT, 'store/backdrop-lobby.jpg');
 const CDP_PORT = 9334;
 const HTTP_PORT = 8913;
 
@@ -57,6 +61,14 @@ const LEGACY_PANEL = { left: 924, top: 4, right: 1156, bottom: 304 };
 
 /** How tall the settings page is drawn, before scaling to fill the canvas. */
 const SETTINGS_TARGET_HEIGHT = 700;
+
+/**
+ * The game type the blocking image is about, and where the lobby's "Start Game" sits in
+ * `backdrop-lobby.jpg` — measured off that capture, so it moves only if the capture is
+ * retaken.
+ */
+const BLOCKED_TYPE = 'rapid';
+const START_GAME = { left: 827, top: 163, width: 222, height: 52 };
 
 const messages = JSON.parse(await readFile(join(DIST, `_locales/${LOCALE}/messages.json`), 'utf8'));
 
@@ -102,6 +114,21 @@ const VIEW = {
       decision: { allow: true },
     },
   ],
+};
+
+/**
+ * What the background answers the content script, which is the whole of what the blocking
+ * image needs: the quota for one game type is spent and the click that asks for another is
+ * refused.
+ *
+ * Later in the same evening than the popup above, which still has a rapid game left in it.
+ * A listing image is a moment, not a frame of the same second, and the alternative — a
+ * popup already showing 3/3 — would cost the shot that shows a day mid-flight.
+ */
+const DECISIONS = {
+  bullet: { allow: true },
+  blitz: { allow: true },
+  rapid: { allow: false, reason: 'quota', used: 3, limit: 3 },
 };
 
 /** The account both pages show, and the defaults the settings page is shipped with. */
@@ -163,7 +190,11 @@ const stub = `(() => {
       onMessage: { addListener: () => {} },
       openOptionsPage: () => {},
       sendMessage: () => Promise.resolve(
-        { decisions: {}, blockRematch: true, view: ${JSON.stringify(VIEW)} },
+        {
+          decisions: ${JSON.stringify(DECISIONS)},
+          blockRematch: true,
+          view: ${JSON.stringify(VIEW)},
+        },
       ),
     },
     i18n,
@@ -234,14 +265,50 @@ const settingsCanvas = `<!doctype html><meta charset="utf-8"><title>settings</ti
   });
 </script>`;
 
+/**
+ * The blocking screen, over the lobby it refuses you from.
+ *
+ * Nothing here draws the overlay: the built content script is loaded onto the page and
+ * shown the answer the background would have given, and what it puts on screen is what it
+ * puts on screen on chess.com. That is why the block is worth a listing image at all — it
+ * is the one surface a user meets at the moment the extension does its job.
+ *
+ * The two elements below are stand-ins for the lobby's, because the lobby in the image is
+ * a photograph and cannot be clicked: the selector holds the game type the way chess.com
+ * holds it, in a `game-time-*` glyph, and "Start Game" sits transparent over the pixels
+ * where the real one is, so the click that raises the overlay lands where the image shows
+ * the button. Neither is ever visible; the overlay covers the viewport.
+ */
+const blockedCanvas = `<!doctype html><meta charset="utf-8"><title>blocked</title><style>
+  html, body { margin: 0; width: ${CANVAS.width}px; height: ${CANVAS.height}px; overflow: hidden; }
+  body { background: url(/lobby.jpg) no-repeat 0 0 / ${CANVAS.width}px ${CANVAS.height}px; }
+  .selected { position: fixed; left: -9999px; top: 0; }
+  .new-game-primary {
+    position: fixed;
+    left: ${START_GAME.left}px; top: ${START_GAME.top}px;
+    width: ${START_GAME.width}px; height: ${START_GAME.height}px;
+    opacity: 0;
+  }
+  .new-game-primary button { width: 100%; height: 100%; }
+</style>
+<div class="selected">
+  <div class="time-selector-next-component"><svg data-glyph="game-time-${BLOCKED_TYPE}"></svg></div>
+</div>
+<div class="new-game-primary"><button type="button">Start Game</button></div>
+<script src="/content-scripts/chesscom.js"></script>`;
+
 const server = await serve({
   dist: DIST,
   port: HTTP_PORT,
   pages: new Map([
     ['/canvas/popup.html', popupCanvas],
     ['/canvas/settings.html', settingsCanvas],
+    ['/canvas/blocked.html', blockedCanvas],
   ]),
-  files: new Map([['/backdrop.jpg', BACKDROP]]),
+  files: new Map([
+    ['/backdrop.jpg', BACKDROP],
+    ['/lobby.jpg', LOBBY],
+  ]),
 });
 const browser = await launch({ port: CDP_PORT, args: ['--hide-scrollbars'] });
 
@@ -291,12 +358,44 @@ try {
   await capture(popup, '1-popup');
   popup.close();
 
+  const blocked = await browser.open(`http://127.0.0.1:${HTTP_PORT}/canvas/blocked.html`, {
+    stub,
+    viewport: CANVAS,
+    timezone: TIMEZONE,
+  });
+
+  // The content script asks for the decisions on load and refuses nothing until they land.
+  await sleep(1_500);
+
+  // A mouse press rather than `element.click()`: the overlay takes focus as it opens, and
+  // focus arriving any way other than by pointer draws a ring Chrome would never draw for
+  // the click this stands in for — which would ship as a blue outline nobody could explain.
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await blocked.send('Input.dispatchMouseEvent', {
+      type,
+      x: START_GAME.left + START_GAME.width / 2,
+      y: START_GAME.top + START_GAME.height / 2,
+      button: 'left',
+      clickCount: 1,
+    });
+  }
+  await sleep(600);
+
+  // The overlay lives in a closed shadow root, so it cannot be read back to check. What
+  // can be checked is that the click was refused: the extension logs every block, and a
+  // page that reached chess.com's own handler would have navigated.
+  const raised = await blocked.eval(`document.querySelectorAll('body > *').length`);
+  if (raised < 4) throw new Error('the overlay did not open: is the seeded decision spent?');
+
+  await capture(blocked, `2-quota-spent`);
+  blocked.close();
+
   const settings = await browser.open(`http://127.0.0.1:${HTTP_PORT}/canvas/settings.html`, {
     stub,
     viewport: CANVAS,
     timezone: TIMEZONE,
   });
-  await capture(settings, '3-settings');
+  await capture(settings, '4-settings');
   settings.close();
 } finally {
   await browser.close();

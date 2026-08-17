@@ -244,9 +244,12 @@ nothing. And that the form still fits that dialog, which is 640px tall counting 
 title bar: the page is measured after rendering, in every language shipped, because what
 decides its height is the text, and the translations run longer than the English.
 
-`pnpm screenshots` re-renders `store/screenshots/1-popup.jpg` and `3-settings.jpg` from the
-built bundle, which is the only way to capture either — a popup is not a page you can open,
-and the settings live inside a dialog. Both went stale unnoticed once already. The third
-image is the overlay running on the real site and is not made by a script.
+`pnpm screenshots` re-renders `1-popup.jpg`, `2-quota-spent.jpg` and `4-settings.jpg` from
+the built bundle, which is the only way to capture any of them — a popup is not a page you
+can open, the settings live inside a dialog, and the blocking screen needs a click the
+extension refuses. The first two went stale unnoticed once already. That third image is the
+real content script, loaded onto a capture of the lobby and shown a spent quota, so what it
+draws is what it draws on chess.com. Only `3-rematch-blocked.jpg` is not made by a script:
+it needs a real game to end.
 
 Both need Chrome installed; the screenshots also need the network, for the avatar.
