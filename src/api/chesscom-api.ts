@@ -12,8 +12,20 @@ import type { ApiGame } from '../core/games';
  * game shows up in the archive seconds after it ends. The 12-hour refresh the docs
  * mention belongs to other endpoints, not this one.
  *
- * The archive is large (~1 MB mid-month), so requests carry `If-Modified-Since`: when you
- * have not played since last time the server replies 304 with no body.
+ * The archive is large (~1 MB mid-month, ~280 KB over the wire), and this is polled every
+ * few seconds while a finished game is on its way — so requests are conditional and the
+ * server answers 304 with no body when you have not played since last time.
+ *
+ * Conditional on the **ETag**, not on `Last-Modified`. The server sends both, but measured
+ * against it, `If-Modified-Since` is ignored: echoing its own stamp back — in its own
+ * format, in RFC 1123, or a second earlier — answers 200 with the whole archive every
+ * time. `If-None-Match` answers 304. So the caching this file claimed to do was not
+ * happening at all: every sync downloaded and parsed the full month, which on a slow
+ * connection is most of the wait after a game ends.
+ *
+ * `ETag` is not a CORS-safelisted response header, unlike `Last-Modified`. It is readable
+ * here because the background holds `api.chess.com` in `host_permissions`, which exempts
+ * its requests from CORS filtering. Read from a content script it would come back null.
  */
 
 export type Month = { year: number; month: number };
@@ -57,14 +69,14 @@ export function archiveUrl(username: string, month: Month): string {
   return `${playerUrl(username)}/games/${monthKey(month).replace('-', '/')}`;
 }
 
-/** `Last-Modified` stamps per month, so we only ask for what changed. */
-export type LastModified = Record<string, string>;
+/** `ETag`s per month, so we only ask for what changed. */
+export type Etags = Record<string, string>;
 
 export type ArchiveResult = {
   games: ApiGame[];
   /** `true` when **every** month answered 304: the caller can keep its cache. */
   unchanged: boolean;
-  lastModified: LastModified;
+  etags: Etags;
 };
 
 /**
@@ -79,28 +91,27 @@ async function fetchMonth(
   month: Month,
   previous: string | undefined,
   fetchImpl: Fetcher,
-): Promise<{ games: ApiGame[] | null; lastModified?: string }> {
+): Promise<{ games: ApiGame[] | null; etag?: string }> {
   const response = await fetchImpl(archiveUrl(username, month), {
-    headers: previous === undefined ? {} : { 'If-Modified-Since': previous },
+    headers: previous === undefined ? {} : { 'If-None-Match': previous },
     /*
      * Never the browser's copy. The archive is served `max-age=5`, so a request made
      * within five seconds of the last one was answered from the HTTP cache without
      * leaving the machine — and the request that lands in that window is the one that
      * matters: the sync fired when a game ends, then the popup opened right after it.
      * The game you just played would be missing from both, for no reason a user could
-     * see. Freshness here is `If-Modified-Since`, which costs a 304 and is ours to
-     * control.
+     * see. Freshness here is `If-None-Match`, which costs a 304 and is ours to control.
      */
     cache: 'no-store',
   });
 
-  if (response.status === 304) return { games: null, lastModified: previous };
+  if (response.status === 304) return { games: null, etag: previous };
   if (response.status === 404) return { games: [] };
   if (!response.ok) throw new Error(`chess.com API responded ${response.status}`);
 
   const body = (await response.json()) as { games?: ApiGame[] };
-  const lastModified = response.headers.get('last-modified') ?? undefined;
-  return { games: body.games ?? [], ...(lastModified === undefined ? {} : { lastModified }) };
+  const etag = response.headers.get('etag') ?? undefined;
+  return { games: body.games ?? [], ...(etag === undefined ? {} : { etag }) };
 }
 
 /** Every game from the months covering the given window. */
@@ -108,14 +119,14 @@ export async function fetchGamesCovering(input: {
   username: string;
   startMs: number;
   endMs: number;
-  lastModified?: LastModified;
+  etags?: Etags;
   fetchImpl?: Fetcher;
 }): Promise<ArchiveResult> {
-  const { username, startMs, endMs, lastModified = {}, fetchImpl = fetch } = input;
+  const { username, startMs, endMs, etags = {}, fetchImpl = fetch } = input;
   const months = monthsCovering(startMs, endMs);
 
   const results = await Promise.all(
-    months.map((month) => fetchMonth(username, month, lastModified[monthKey(month)], fetchImpl)),
+    months.map((month) => fetchMonth(username, month, etags[monthKey(month)], fetchImpl)),
   );
 
   // A mixed answer — one month 304, another changed — cannot keep any cache: the caller
@@ -130,19 +141,19 @@ export async function fetchGamesCovering(input: {
     );
   }
 
-  const stamps: LastModified = {};
+  const stamps: Etags = {};
   const games: ApiGame[] = [];
   let unchanged = true;
 
   results.forEach((result, i) => {
     const key = monthKey(months[i]!);
-    if (result.lastModified !== undefined) stamps[key] = result.lastModified;
+    if (result.etag !== undefined) stamps[key] = result.etag;
     if (result.games === null) return; // 304: nothing new this month
     unchanged = false;
     games.push(...result.games);
   });
 
-  return { games, unchanged, lastModified: stamps };
+  return { games, unchanged, etags: stamps };
 }
 
 /**

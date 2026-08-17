@@ -123,8 +123,11 @@ src/
 From the public monthly archive: `api.chess.com/pub/player/{username}/games/{YYYY}/{MM}`.
 Measured against the live server it answers `cache-control: public, max-age=5` and a game
 shows up seconds after it ends — the 12-hour refresh the docs mention belongs to other
-endpoints. Requests carry `If-Modified-Since` because the archive runs close to a megabyte
-mid-month.
+endpoints. Requests are conditional because the archive runs close to a megabyte mid-month
+and this is polled every few seconds while a finished game is on its way — on the `ETag`,
+not on `Last-Modified`: the server sends both and honours only the first. Measured against
+it, `If-Modified-Since` answers 200 with the whole archive however the stamp is spelled,
+while `If-None-Match` answers 304.
 
 The API has exactly one blind spot: **it takes a few seconds to publish a finished game**.
 Until it does, the gap between games is measured from the _previous_ one — and after a

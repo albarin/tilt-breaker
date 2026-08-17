@@ -9,12 +9,12 @@ import {
 
 const at = (iso: string) => new Date(iso).getTime();
 
-function response(body: unknown, status = 200, lastModified?: string): Response {
+function response(body: unknown, status = 200, etag?: string): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
-    headers: { get: (h: string) => (h === 'last-modified' ? (lastModified ?? null) : null) },
+    headers: { get: (h: string) => (h === 'etag' ? (etag ?? null) : null) },
   } as Response;
 }
 
@@ -62,8 +62,8 @@ describe('monthsCovering', () => {
 });
 
 describe('fetchGamesCovering', () => {
-  const run = (fetchImpl: typeof fetch, lastModified = {}) =>
-    fetchGamesCovering({ username: 'alba', ...ONE_DAY, lastModified, fetchImpl });
+  const run = (fetchImpl: typeof fetch, etags = {}) =>
+    fetchGamesCovering({ username: 'alba', ...ONE_DAY, etags, fetchImpl });
 
   it('returns the games in the archive', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(response({ games: [{ url: 'x' }] }));
@@ -92,18 +92,24 @@ describe('fetchGamesCovering', () => {
   });
 
   describe('conditional caching', () => {
-    const STAMP = 'Saturday, 08-Aug-2026 20:46:13 GMT+0000';
+    const STAMP = 'W/"40d3008742dde2cb45bf2cf501c1eece"';
 
-    it('keeps the Last-Modified the server sends back', async () => {
+    it('keeps the ETag the server sends back', async () => {
       const fetchImpl = vi.fn().mockResolvedValue(response({ games: [] }, 200, STAMP));
-      await expect(run(fetchImpl)).resolves.toMatchObject({ lastModified: { '2026-08': STAMP } });
+      await expect(run(fetchImpl)).resolves.toMatchObject({ etags: { '2026-08': STAMP } });
     });
 
-    it('sends it back as If-Modified-Since', async () => {
+    /**
+     * The ETag and not the `Last-Modified`, which the server also sends and then ignores:
+     * measured against it, `If-Modified-Since` answers 200 with the whole megabyte however
+     * the stamp is spelled. Conditioning on the wrong header is not a slower cache, it is
+     * no cache at all.
+     */
+    it('sends it back as If-None-Match', async () => {
       const fetchImpl = vi.fn().mockResolvedValue(response({ games: [] }));
       await run(fetchImpl, { '2026-08': STAMP });
       expect(fetchImpl).toHaveBeenCalledWith(expect.any(String), {
-        headers: { 'If-Modified-Since': STAMP },
+        headers: { 'If-None-Match': STAMP },
         cache: 'no-store',
       });
     });
@@ -128,7 +134,7 @@ describe('fetchGamesCovering', () => {
       const fetchImpl = vi.fn().mockResolvedValue(response(null, 304));
       const result = await run(fetchImpl, { '2026-08': STAMP });
       expect(result).toMatchObject({ games: [], unchanged: true });
-      expect(result.lastModified['2026-08']).toBe(STAMP);
+      expect(result.etags['2026-08']).toBe(STAMP);
     });
 
     /**
@@ -145,7 +151,7 @@ describe('fetchGamesCovering', () => {
       const result = await fetchGamesCovering({
         username: 'alba',
         ...ACROSS_MONTHS,
-        lastModified: { '2026-08': STAMP, '2026-09': STAMP },
+        etags: { '2026-08': STAMP, '2026-09': STAMP },
         fetchImpl,
       });
       expect(result.unchanged).toBe(false);

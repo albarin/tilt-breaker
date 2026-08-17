@@ -10,14 +10,20 @@ export type DaySnapshot = {
   dayKey: string;
   /**
    * The account the games belong to. A different sign-in invalidates the snapshot,
-   * stamps included: sending the old account's If-Modified-Since against the new
-   * account's archive can 304 and keep counting games the new account never played.
+   * stamps included: sending the old account's ETag against the new account's archive
+   * can 304 and keep counting games the new account never played.
    */
   username: string;
   games: Record<string, GameRecord>;
   fetchedAt: number;
-  /** Per-month stamps for conditional requests. */
-  lastModified: Record<string, string>;
+  /**
+   * Per-month `ETag`s for conditional requests.
+   *
+   * Snapshots written before this held `Last-Modified` stamps under another key. Nothing
+   * migrates them: a missing ETag is one unconditional request, after which the snapshot
+   * is in the new shape.
+   */
+  etags: Record<string, string>;
 };
 
 const settingsItem = storage.defineItem<Settings>('local:settings', {

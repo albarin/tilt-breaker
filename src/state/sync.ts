@@ -52,7 +52,7 @@ export async function syncDay(input: {
     username: username ?? '',
     games: {},
     fetchedAt: 0,
-    lastModified: {},
+    etags: {},
   };
   const asState = (snapshot: DaySnapshot, lastEnd: number | null): DayState => ({
     dayKey,
@@ -75,7 +75,9 @@ export async function syncDay(input: {
       username,
       startMs: dayStart,
       endMs: dayEnd,
-      lastModified: stored.lastModified,
+      // `?? {}` for the snapshot a previous version wrote, which has no ETags: it asks
+      // unconditionally once and is rewritten in the current shape below.
+      etags: stored.etags ?? {},
       ...(fetchImpl === undefined ? {} : { fetchImpl }),
     });
 
@@ -93,7 +95,7 @@ export async function syncDay(input: {
         // already had still stand.
         games: archive.unchanged ? stored.games : gamesForDay({ records, dayStart, dayEnd }),
         fetchedAt: now,
-        lastModified: { ...stored.lastModified, ...archive.lastModified },
+        etags: { ...stored.etags, ...archive.etags },
       };
       await setSnapshot(next);
       return next;

@@ -8,12 +8,12 @@ import { syncDay } from './sync';
 const ME = 'crabinloan';
 const NOON = new Date('2026-08-08T12:00:00');
 
-function response(body: unknown, status = 200, lastModified?: string): Response {
+function response(body: unknown, status = 200, etag?: string): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
-    headers: { get: (h: string) => (h === 'last-modified' ? (lastModified ?? null) : null) },
+    headers: { get: (h: string) => (h === 'etag' ? (etag ?? null) : null) },
   } as Response;
 }
 
