@@ -14,7 +14,7 @@
  */
 
 import { parseGameId } from '../core/games';
-import { classify, gameTypeFromLabel } from '../core/gametype';
+import { classify, gameTypeFromLabel, gameTypeFromNewGameLabel } from '../core/gametype';
 import type { GameType } from '../core/types';
 
 export const SEL = {
@@ -58,6 +58,34 @@ export const SEL = {
    * (`game-review-buttons-component`), so reviewing a game stays untouched.
    */
   newGameButtons: '[class*="new-game-buttons-component"]',
+  /**
+   * The game review's own next-game buttons, the ones that name themselves.
+   *
+   * The review is a page of its own — `/analysis/game/live/{id}` — and not the sidebar the
+   * modal leaves behind, so none of the containers above reach into it. It offers to start
+   * another game from four places, and these two say so in a class: one in the summary you
+   * land on, one beside the review's actions.
+   */
+  reviewNewGame: '.overview-view-new-game button, button.tab-review-new-game-button',
+  /**
+   * The pair under the move list, which is the other two: "Highlights" and "New N min".
+   *
+   * chess.com gives them the same class and nothing else to tell them apart, so the button
+   * is judged by the time control in its own label — see `gameTypeFromNewGameLabel`.
+   * Going back to the highlights of a game already played must stay clickable.
+   */
+  reviewMoveButtons: '.move-by-move-buttons button',
+  /**
+   * The review's primary button, which is one element wearing two jobs: "Next" for the
+   * whole walkthrough, and "New Game" once it ends — the green button at the top of the
+   * panel, and the last way out of a spent quota.
+   *
+   * Told apart by the glyph and never by the word: as "Next" it carries
+   * `arrow-line-right`, and as the new game it carries the same `game-time-*` icon the
+   * lobby uses. Blocking it on its text would be blocking it in English only, and blocking
+   * it outright would break stepping through the review.
+   */
+  reviewFlowButton: '.flow-buttons-button',
   /**
    * The modal's close X, which is also a `<button>`. It must always get through:
    * blocking it would strand the modal on screen with no way to dismiss it.
@@ -206,6 +234,16 @@ export function classifyClick(target: EventTarget | null): ClickTarget {
     return { kind: 'rematch' };
   }
 
+  if (target.closest(SEL.reviewNewGame) !== null) return { kind: 'rematch' };
+
+  const moveButton = target.closest(SEL.reviewMoveButtons);
+  if (moveButton !== null && gameTypeFromNewGameLabel(moveButton.textContent) !== null) {
+    return { kind: 'rematch' };
+  }
+
+  const flow = target.closest(SEL.reviewFlowButton);
+  if (flow !== null && flow.querySelector(SEL.timeGlyph) !== null) return { kind: 'rematch' };
+
   return { kind: 'other' };
 }
 
@@ -215,10 +253,20 @@ export function classifyClick(target: EventTarget | null): ClickTarget {
  * Cancelling the click is not enough on its own: a button that looks ready and then does
  * nothing reads as the page being broken. Greying it says the refusal was deliberate
  * before it is reached for.
+ *
+ * Gathered wide and sieved through `classifyClick`, which is the same judgement the click
+ * gets: the two review containers hold buttons that must stay live — "Highlights", and
+ * "Next" for as long as the walkthrough runs — and no second rule decides that here.
  */
 export function findRematchButtons(root: ParentNode): Element[] {
-  const inBoth = `${SEL.gameOverShell} button, ${SEL.newGameButtons} button`;
-  return Array.from(root.querySelectorAll(inBoth)).filter(
+  const everywhere = [
+    `${SEL.gameOverShell} button`,
+    `${SEL.newGameButtons} button`,
+    SEL.reviewNewGame,
+    SEL.reviewMoveButtons,
+    SEL.reviewFlowButton,
+  ].join(', ');
+  return Array.from(root.querySelectorAll(everywhere)).filter(
     (button) => classifyClick(button).kind === 'rematch',
   );
 }

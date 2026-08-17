@@ -29,3 +29,20 @@ export function gameTypeFromLabel(raw: string | null | undefined): GameType | nu
   if (match === null) return null;
   return classify({ base: Number(match[1]) * 60, increment: Number(match[2] ?? 0) });
 }
+
+/**
+ * The game type a next-game button starts, from a label that says more than the control:
+ * `"New 15 + 10"`, `"New 1 min"`.
+ *
+ * The time control is picked out of the sentence rather than the sentence being parsed,
+ * because the sentence is language and the control is not. Which is the point: it is what
+ * tells a button that starts a game from one that does not, in a panel where chess.com
+ * gives the two the same class and only the words differ.
+ *
+ * `null` for a label carrying no control — "Highlights", "Rematch" — and for a
+ * correspondence one, which is never limited.
+ */
+export function gameTypeFromNewGameLabel(raw: string | null | undefined): GameType | null {
+  const control = /\d+\s*[|/+]\s*\d+|\d+\s*min\b/i.exec(raw ?? '')?.[0];
+  return gameTypeFromLabel(control);
+}

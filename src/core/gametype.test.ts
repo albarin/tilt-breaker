@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classify, gameTypeFromLabel } from './gametype';
+import { classify, gameTypeFromLabel, gameTypeFromNewGameLabel } from './gametype';
 
 describe('classify', () => {
   it('cuts at 180 and 600 estimated seconds', () => {
@@ -41,5 +41,40 @@ describe('gameTypeFromLabel', () => {
     expect(gameTypeFromLabel('')).toBeNull();
     expect(gameTypeFromLabel(null)).toBeNull();
     expect(gameTypeFromLabel(undefined)).toBeNull();
+  });
+});
+
+/**
+ * What tells a button that starts a game from one that does not, where chess.com gives
+ * both the same class: the review's "New N min" sits beside "Highlights" wearing exactly
+ * its markup, and only the label says which is which.
+ */
+describe('gameTypeFromNewGameLabel', () => {
+  // Labels copied verbatim from the game review and the game-over modal.
+  it('finds the control inside the sentence around it', () => {
+    expect(gameTypeFromNewGameLabel('New 15 + 10')).toBe('rapid');
+    expect(gameTypeFromNewGameLabel('New 1 min')).toBe('bullet');
+    expect(gameTypeFromNewGameLabel('New 3 + 2')).toBe('blitz');
+  });
+
+  /**
+   * The words around it are the one part that is not the same in every language, so they
+   * are the one part not read. Spanish and Catalan write the control the same way.
+   */
+  it('does not care what language the sentence is in', () => {
+    expect(gameTypeFromNewGameLabel('Nueva de 10 min')).toBe('rapid');
+    expect(gameTypeFromNewGameLabel('Nova partida 3 + 2')).toBe('blitz');
+  });
+
+  it('says nothing about a button that starts no game', () => {
+    expect(gameTypeFromNewGameLabel('Highlights')).toBeNull();
+    expect(gameTypeFromNewGameLabel('Rematch')).toBeNull();
+    expect(gameTypeFromNewGameLabel('Start Review')).toBeNull();
+    expect(gameTypeFromNewGameLabel(null)).toBeNull();
+  });
+
+  /** Correspondence is never limited, so a "New 1 day" is nothing to us either. */
+  it('says nothing about correspondence', () => {
+    expect(gameTypeFromNewGameLabel('New 1 day')).toBeNull();
   });
 });

@@ -89,6 +89,75 @@ const SIDEBAR = `
     </div>
   </div>`;
 
+/**
+ * The game review, which is a page of its own and not the sidebar above. Copied from the
+ * live `/analysis/game/live/{id}`, where it offers to start another game from four places:
+ * the summary you land on, the review's action row, the pair under the move list, and the
+ * primary button once the walkthrough ends.
+ *
+ * The last two are the awkward ones. chess.com gives "Highlights" and "New N min" the same
+ * class and nothing else to tell them apart, and the primary button is one element that
+ * reads "Next" all the way through and "New Game" at the end — the same class, a different
+ * glyph.
+ */
+const REVIEW = `
+  <div class="sidebar-component">
+    <div class="sidebar-view-component">
+      <div class="sidebar-tab-content-component sidebar-view-content">
+        <div class="overview-view-container">
+          <section class="overview-view-section overview-view-new-game">
+            <button id="overview-new" class="cc-button-component cc-button-secondary cc-button-full">New 15 + 10</button>
+          </section>
+          <div class="tab-review-start-review-wrapper">
+            <button id="start-review" class="cc-button-component tab-review-start-review-button">Start Review</button>
+          </div>
+        </div>
+        <div class="tab-review-action-buttons">
+          <button id="review-new" class="cc-button-component tab-review-new-game-button">
+            <span id="review-new-child">New 15 + 10</span>
+          </button>
+        </div>
+        <div class="move-by-move-container move-by-move-redesign">
+          <div class="move-by-move-component move-by-move-redesign">
+            <div class="move-by-move-coach-section">
+              <div class="move-by-move-takeaways">
+                <div class="flow-buttons-component flow-buttons-singleButton move-by-move-button">
+                  <button id="flow-next" class="cc-button-component cc-button-primary flow-buttons-button" type="button">
+                    <span aria-hidden="true" class="cc-icon-glyph cc-button-icon"><svg data-glyph="arrow-line-right"></svg></span>
+                    <span class="cc-button-one-line flow-buttons-label">Next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="move-by-move-move-list-container move-by-move-hide-timestamps">
+              <div class="move-by-move-buttons">
+                <button id="highlights" class="cc-button-component cc-button-secondary cc-button-full" type="button">
+                  <span aria-hidden="true" class="cc-icon-glyph cc-button-icon"><svg data-glyph="arrow-line-left"></svg></span>
+                  <span class="">Highlights</span>
+                </button>
+                <button id="move-list-new" class="cc-button-component cc-button-secondary cc-button-full" type="button">
+                  <span class="">New 15 + 10</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+/**
+ * The same primary button once the walkthrough is over: same class, the arrow swapped for
+ * the game-type glyph the lobby uses, and a word that would be a different word in every
+ * other language.
+ */
+const REVIEW_ENDED = REVIEW.replace(
+  `<span aria-hidden="true" class="cc-icon-glyph cc-button-icon"><svg data-glyph="arrow-line-right"></svg></span>
+                    <span class="cc-button-one-line flow-buttons-label">Next</span>`,
+  `<span aria-hidden="true" class="cc-icon-glyph cc-button-icon"><svg data-glyph="game-time-rapid"></svg></span>
+                    <span class="cc-button-one-line flow-buttons-label">New Game</span>`,
+);
+
 describe('readSelectedGameType', () => {
   it('reads the selected game type off the icon', () => {
     render(LOBBY);
@@ -182,6 +251,39 @@ describe('classifyClick', () => {
   });
 
   /**
+   * The hole this closes: the review is a page of its own, so the modal's container and
+   * the sidebar's both stop at its door. Its two "New N min" chained a game past every
+   * block — the quota, the gap and the losing streak alike.
+   */
+  it('recognises every next-game button in the review', () => {
+    render(REVIEW);
+    expect(classifyClick(el('overview-new'))).toEqual({ kind: 'rematch' });
+    expect(classifyClick(el('review-new'))).toEqual({ kind: 'rematch' });
+    expect(classifyClick(el('review-new-child'))).toEqual({ kind: 'rematch' });
+    expect(classifyClick(el('move-list-new'))).toEqual({ kind: 'rematch' });
+  });
+
+  // Reading a game you have already played is not playing another one.
+  it('never touches the rest of the review', () => {
+    render(REVIEW);
+    expect(classifyClick(el('start-review'))).toEqual({ kind: 'other' });
+    expect(classifyClick(el('highlights'))).toEqual({ kind: 'other' });
+  });
+
+  /**
+   * One button, two jobs. Stepping through the review must stay possible while the quota
+   * is spent — it is the opposite of playing another game — and the same element becomes
+   * the way out of that quota the moment the walkthrough ends.
+   */
+  it('lets the review flow through, and stops it turning into a new game', () => {
+    render(REVIEW);
+    expect(classifyClick(el('flow-next'))).toEqual({ kind: 'other' });
+
+    render(REVIEW_ENDED);
+    expect(classifyClick(el('flow-next'))).toEqual({ kind: 'rematch' });
+  });
+
+  /**
    * The close X is a `<button>` inside the modal too. Blocking it would strand the modal
    * on screen with no way to dismiss it.
    */
@@ -221,6 +323,20 @@ describe('findRematchButtons', () => {
         .map((b) => b.id)
         .sort(),
     ).toEqual(['new', 'rematch', 'side-new', 'side-rematch']);
+  });
+
+  it('greys the review buttons, and nothing else in the review', () => {
+    render(REVIEW);
+    expect(
+      findRematchButtons(document)
+        .map((b) => b.id)
+        .sort(),
+    ).toEqual(['move-list-new', 'overview-new', 'review-new']);
+  });
+
+  it('greys the review primary only once it offers a game', () => {
+    render(REVIEW_ENDED);
+    expect(findRematchButtons(document).map((b) => b.id)).toContain('flow-next');
   });
 
   it('with no modal there is nothing to grey out', () => {
