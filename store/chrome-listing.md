@@ -48,9 +48,9 @@ Not affiliated with Chess.com.
 In `store/screenshots/`, at the 1280×800 the dashboard wants. Suggested order:
 
 1. **`1-popup.jpg`** — the popup over a real chess.com lobby: today's count per game type,
-   how those games went and what they did to your rating, blitz spent, and the wait until
-   the next game. The page behind is dimmed so the popup reads as the subject; nothing in
-   the interface is faked.
+   what you are rated in each, how those games went and what they did to that rating,
+   blitz spent, and the wait until the next game. The page behind is dimmed so the popup
+   reads as the subject; nothing in the interface is faked.
 2. **`2-rematch-blocked.jpg`** — the blocking screen after a game, produced by the real
    overlay code running on a real chess.com page.
 3. **`3-settings.jpg`** — everything that can be configured, which is little on purpose.
