@@ -128,8 +128,9 @@ export default defineContentScript({
     /**
      * A block covering every game type, so it holds whatever game gets started next.
      *
-     * The game-over modal's buttons chain a game of the type just played, which the page
-     * does not name — so only a blanket block can be enforced there without guessing.
+     * What a plain "Rematch" falls back to: it chains a game of the type just played and
+     * the page does not name it, so this is the only block enforceable there without
+     * guessing. A button that *does* name its game is judged on that game instead.
      * Prefers the gap, the block that is global by design.
      */
     function blanketBlock(): { gameType: GameType; decision: Decision } | null {
@@ -176,9 +177,21 @@ export default defineContentScript({
         // Refused by the rematch rule, by a block covering every game type, or by both —
         // `rematchCopy` owns which of the two gets to explain itself.
         case 'rematch': {
-          const blanket = blanketBlock();
-          const copy = rematchCopy({ blockRematch, blanket, now: Date.now() });
-          if (copy !== null) block(event, copy, blanket?.decision ?? 'rematch');
+          /*
+           * The game the button names beats the blanket, and it is the whole of why the
+           * game type is carried here: on a rapid "New Game" the blanket reports whichever
+           * spent type comes first, which put "your Bullet is done for today" over a rapid
+           * button. Named and free, nothing here blocks — `blanketBlock` cannot be holding
+           * either, since that would mean the named type was spent too.
+           */
+          const named = click.gameType === null ? null : blockedReason(click.gameType);
+          const blocked =
+            click.gameType !== null && named !== null
+              ? { gameType: click.gameType, decision: named }
+              : blanketBlock();
+
+          const copy = rematchCopy({ blockRematch, blocked, now: Date.now() });
+          if (copy !== null) block(event, copy, blocked?.decision ?? 'rematch');
           return;
         }
 
@@ -202,9 +215,16 @@ export default defineContentScript({
 
       // Refused either by the rematch rule or by a block that covers every game type —
       // the same two cases the click interceptor answers, painted the same way.
-      const rematchRefused = blockRematch || blanketBlock() !== null;
+      // Judged one by one, and by the same rule the click gets: a button that names a
+      // spent game type is refused while the others on the same panel are not.
+      const refusedAlways = blockRematch || blanketBlock() !== null;
       for (const button of findRematchButtons(document)) {
-        button.toggleAttribute(BLOCKED_ATTR, rematchRefused);
+        const click = classifyClick(button);
+        const named =
+          click.kind === 'rematch' && click.gameType !== null
+            ? blockedReason(click.gameType)
+            : null;
+        button.toggleAttribute(BLOCKED_ATTR, refusedAlways || named !== null);
       }
     }
 

@@ -61,20 +61,27 @@ export const REMATCH_COPY: OverlayCopy = {
  * What to show when a button that chains another game is clicked, or `null` to let the
  * click through.
  *
- * A block covering every game type is reported ahead of the rematch rule, which reads the
- * wrong way round until you see what the copy says. "Go back to the lobby" is only true
- * advice while the lobby would let you in: inside the gap, or with every type spent, it
- * sends you to a door that is shut as well and withholds the one thing worth knowing —
- * when it opens. With one type spent but another free the lobby really is the way, and
- * that is the case this still answers.
+ * The block that applies is reported ahead of the rematch rule, which reads the wrong way
+ * round until you see what the copy says. "Go back to the lobby" is only true advice while
+ * the lobby would let you in: inside the gap, or with the game you just asked for spent,
+ * it sends you to a door that is shut as well and withholds the one thing worth knowing —
+ * when it opens. With nothing in the way but the rematch rule itself the lobby really is
+ * the way, and that is the case this still answers.
  */
 export function rematchCopy(input: {
   blockRematch: boolean;
-  blanket: { decision: Decision; gameType: GameType } | null;
+  /**
+   * The block to report, or `null` when nothing but the rematch rule is in the way.
+   *
+   * Its game type is the one the copy will name, so it must be the game the button would
+   * have started — the one the button names where it does, and any of the spent ones where
+   * it names nothing, since then they are all spent.
+   */
+  blocked: { decision: Decision; gameType: GameType } | null;
   now: number;
 }): OverlayCopy | null {
-  const { blockRematch, blanket, now } = input;
-  if (blanket !== null) return copyFor(blanket.decision, blanket.gameType, now);
+  const { blockRematch, blocked, now } = input;
+  if (blocked !== null) return copyFor(blocked.decision, blocked.gameType, now);
   return blockRematch ? REMATCH_COPY : null;
 }
 

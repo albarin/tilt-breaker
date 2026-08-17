@@ -67,29 +67,45 @@ describe('REMATCH_COPY', () => {
 
 describe('rematchCopy', () => {
   const GAP: Decision = { allow: false, reason: 'gap', until: at('2026-08-08T12:20:00') };
-  const blanket = { decision: GAP, gameType: 'blitz' as const };
+  const blocked = { decision: GAP, gameType: 'blitz' as const };
 
   it('says nothing when neither rule refuses', () => {
-    expect(rematchCopy({ blockRematch: false, blanket: null, now: NOON })).toBeNull();
+    expect(rematchCopy({ blockRematch: false, blocked: null, now: NOON })).toBeNull();
   });
 
   it('sends you to the lobby when the lobby would take you', () => {
-    expect(rematchCopy({ blockRematch: true, blanket: null, now: NOON })).toEqual(REMATCH_COPY);
+    expect(rematchCopy({ blockRematch: true, blocked: null, now: NOON })).toEqual(REMATCH_COPY);
   });
 
   /**
    * The bug this exists to stop: "go back to the lobby" while the gap is running sends
    * you somewhere that refuses you too, and buries the only useful fact — the time.
    */
-  it('a block covering every type outranks the rematch rule', () => {
-    const copy = rematchCopy({ blockRematch: true, blanket, now: NOON })!;
+  it('the block that applies outranks the rematch rule', () => {
+    const copy = rematchCopy({ blockRematch: true, blocked, now: NOON })!;
     expect(copy.body).not.toMatch(/lobby/i);
     expect(copy.body).toContain('12:20');
   });
 
   it('and still explains itself with the rematch rule switched off', () => {
-    const copy = rematchCopy({ blockRematch: false, blanket, now: NOON })!;
+    const copy = rematchCopy({ blockRematch: false, blocked, now: NOON })!;
     expect(copy.body).toContain('12:20');
+  });
+
+  /**
+   * It names the game type it was handed, which is why the caller must hand it the one the
+   * button would have started: a rapid button reporting the day's spent Bullet was the bug
+   * that made the block carry the wrong true thing.
+   */
+  it('names the game type it was given, and no other', () => {
+    const spentRapid: Decision = { allow: false, reason: 'quota', used: 3, limit: 3 };
+    const copy = rematchCopy({
+      blockRematch: true,
+      blocked: { decision: spentRapid, gameType: 'rapid' },
+      now: NOON,
+    })!;
+    expect(copy.title).toContain('Rapid');
+    expect(copy.title).not.toContain('Bullet');
   });
 });
 

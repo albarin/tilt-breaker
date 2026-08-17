@@ -222,10 +222,15 @@ describe('classifyClick', () => {
     expect(classifyClick(el('start'))).toEqual({ kind: 'startGame' });
   });
 
-  it('recognises rematch and "New N min"', () => {
+  /**
+   * The pair says different amounts about what it starts. "New 1 min" names the game in
+   * its label; "Rematch" names nothing, and a `null` type is what sends the caller to a
+   * block covering every type instead of guessing at one.
+   */
+  it('recognises rematch and "New N min", and reads what they start', () => {
     render(MODAL);
-    expect(classifyClick(el('rematch'))).toEqual({ kind: 'rematch' });
-    expect(classifyClick(el('new'))).toEqual({ kind: 'rematch' });
+    expect(classifyClick(el('rematch'))).toEqual({ kind: 'rematch', gameType: null });
+    expect(classifyClick(el('new'))).toEqual({ kind: 'rematch', gameType: 'bullet' });
   });
 
   // Reviewing a game is not playing another.
@@ -240,8 +245,8 @@ describe('classifyClick', () => {
    */
   it('recognises the sidebar pair as well as the modal one', () => {
     render(SIDEBAR);
-    expect(classifyClick(el('side-rematch'))).toEqual({ kind: 'rematch' });
-    expect(classifyClick(el('side-new'))).toEqual({ kind: 'rematch' });
+    expect(classifyClick(el('side-rematch'))).toEqual({ kind: 'rematch', gameType: null });
+    expect(classifyClick(el('side-new'))).toEqual({ kind: 'rematch', gameType: 'blitz' });
   });
 
   // It sits beside them, and blocking it would take away the reason to stop and look.
@@ -255,12 +260,19 @@ describe('classifyClick', () => {
    * the sidebar's both stop at its door. Its two "New N min" chained a game past every
    * block — the quota, the gap and the losing streak alike.
    */
-  it('recognises every next-game button in the review', () => {
+  /**
+   * All four say which game they start, and the block is written from it: the review's
+   * pair carries "15 + 10" in the label, the primary carries the lobby's own glyph. Report
+   * a spent Bullet over a rapid button and the copy is a true sentence about the wrong
+   * game.
+   */
+  it('recognises every next-game button in the review, and the game it starts', () => {
     render(REVIEW);
-    expect(classifyClick(el('overview-new'))).toEqual({ kind: 'rematch' });
-    expect(classifyClick(el('review-new'))).toEqual({ kind: 'rematch' });
-    expect(classifyClick(el('review-new-child'))).toEqual({ kind: 'rematch' });
-    expect(classifyClick(el('move-list-new'))).toEqual({ kind: 'rematch' });
+    const rapid = { kind: 'rematch', gameType: 'rapid' };
+    expect(classifyClick(el('overview-new'))).toEqual(rapid);
+    expect(classifyClick(el('review-new'))).toEqual(rapid);
+    expect(classifyClick(el('review-new-child'))).toEqual(rapid);
+    expect(classifyClick(el('move-list-new'))).toEqual(rapid);
   });
 
   // Reading a game you have already played is not playing another one.
@@ -280,7 +292,8 @@ describe('classifyClick', () => {
     expect(classifyClick(el('flow-next'))).toEqual({ kind: 'other' });
 
     render(REVIEW_ENDED);
-    expect(classifyClick(el('flow-next'))).toEqual({ kind: 'rematch' });
+    // From the glyph: this is the one next-game button whose label names no control.
+    expect(classifyClick(el('flow-next'))).toEqual({ kind: 'rematch', gameType: 'rapid' });
   });
 
   /**

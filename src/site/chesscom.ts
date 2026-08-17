@@ -190,9 +190,35 @@ export type ClickTarget =
   | { kind: 'startGame' }
   /** A quick-start link that pairs immediately, skipping the lobby. */
   | { kind: 'quickPlay'; gameType: GameType | null }
-  /** "Rematch" or "New N min": chaining another game without leaving the modal. */
-  | { kind: 'rematch' }
+  /**
+   * "Rematch" or "New N min": chaining another game without leaving the game you played.
+   *
+   * `gameType` when the button says which game it starts — the control in its label, the
+   * game-type glyph on its icon — and `null` for a plain "Rematch", which says only "the
+   * same again" and leaves the caller nothing to judge but every type at once.
+   */
+  | { kind: 'rematch'; gameType: GameType | null }
   | { kind: 'other' };
+
+/**
+ * A button that chains another game, and the game it chains where it says so.
+ *
+ * The glyph first and the label second, for the reason `gameTypeOfOption` reads them in
+ * that order: the icon is chess.com naming the game type itself, and the words are us
+ * reading a sentence. Both are asked because the four buttons split between them — the
+ * review's primary carries the icon and calls itself "New Game", the rest carry the time
+ * control in their text and no icon at all.
+ *
+ * `null` is a plain "Rematch", which names nothing, and it is the caller's cue to fall
+ * back to a block covering every game type rather than to guess at one.
+ */
+function chainedGame(button: Element | null): ClickTarget {
+  const glyph = button?.querySelector(SEL.timeGlyph)?.getAttribute('data-glyph');
+  return {
+    kind: 'rematch',
+    gameType: gameTypeFromGlyph(glyph) ?? gameTypeFromNewGameLabel(button?.textContent),
+  };
+}
 
 /**
  * Order matters: the option check comes before the selector one, and the selector before
@@ -224,25 +250,25 @@ export function classifyClick(target: EventTarget | null): ClickTarget {
     target.closest('button') !== null &&
     target.closest(SEL.gameOverClose) === null
   ) {
-    return { kind: 'rematch' };
+    return chainedGame(target.closest('button'));
   }
 
   // The sidebar pair. Its container starts games and holds nothing else, so a button in
   // it needs no further test; requiring one keeps a click on the container's own padding
   // from raising the overlay for nothing.
   if (target.closest(SEL.newGameButtons) !== null && target.closest('button') !== null) {
-    return { kind: 'rematch' };
+    return chainedGame(target.closest('button'));
   }
 
-  if (target.closest(SEL.reviewNewGame) !== null) return { kind: 'rematch' };
+  if (target.closest(SEL.reviewNewGame) !== null) return chainedGame(target.closest('button'));
 
   const moveButton = target.closest(SEL.reviewMoveButtons);
   if (moveButton !== null && gameTypeFromNewGameLabel(moveButton.textContent) !== null) {
-    return { kind: 'rematch' };
+    return chainedGame(moveButton);
   }
 
   const flow = target.closest(SEL.reviewFlowButton);
-  if (flow !== null && flow.querySelector(SEL.timeGlyph) !== null) return { kind: 'rematch' };
+  if (flow !== null && flow.querySelector(SEL.timeGlyph) !== null) return chainedGame(flow);
 
   return { kind: 'other' };
 }
