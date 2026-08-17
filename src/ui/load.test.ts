@@ -90,6 +90,32 @@ describe('watchView', () => {
     expect(seen).toEqual([view(2)]);
   });
 
+  /**
+   * The interval does not wait for the answer. On a slow connection that used to pile
+   * requests for the same thing on top of each other, and their answers can land out of
+   * order — the older one last, undoing what the newer one had already corrected.
+   */
+  it('never asks twice at once', async () => {
+    let answer = () => {};
+    asked.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = () => resolve({ decisions: {}, blockRematch: true, view: view(2) } as never);
+      }),
+    );
+    answers(view(3));
+    const seen: View[] = [];
+    const day = watchView((next) => seen.push(next));
+
+    await vi.advanceTimersByTimeAsync(ASK_EVERY_MS * 3);
+    expect(asked).toHaveBeenCalledTimes(1);
+
+    answer();
+    await vi.advanceTimersByTimeAsync(ASK_EVERY_MS);
+    day.stop();
+
+    expect(seen).toEqual([view(2), view(3)]);
+  });
+
   // Nothing arrives after the popup is gone, including an answer already in flight.
   it('stops for good when told to', async () => {
     answers(view(2), view(3));

@@ -52,6 +52,7 @@ export function watchView(onView: (view: View) => void): {
 } {
   let stopped = false;
   let showing = false;
+  let asking = false;
 
   async function refresh(): Promise<void> {
     const view = await loadView();
@@ -61,15 +62,37 @@ export function watchView(onView: (view: View) => void): {
     onView(view);
   }
 
-  const asking = setInterval(() => void refresh(), ASK_EVERY_MS);
-  const until = setTimeout(() => clearInterval(asking), ASK_FOR_MS);
-  void refresh();
+  /**
+   * One ask at a time.
+   *
+   * The interval does not wait for the answer, and an ask that outlives it — a slow
+   * connection, a service worker still starting — used to have the next one fired on top
+   * of it. That is a queue of requests for the same thing whose answers can land out of
+   * order, the older one last, putting a count back on screen that the newer one had
+   * already corrected.
+   *
+   * Only the interval is guarded. `refresh` stays unconditional: it is what a detected
+   * account change calls, and that must never be the ask that gets dropped.
+   */
+  async function poll(): Promise<void> {
+    if (asking) return;
+    asking = true;
+    try {
+      await refresh();
+    } finally {
+      asking = false;
+    }
+  }
+
+  const polling = setInterval(() => void poll(), ASK_EVERY_MS);
+  const until = setTimeout(() => clearInterval(polling), ASK_FOR_MS);
+  void poll();
 
   return {
     refresh,
     stop: () => {
       stopped = true;
-      clearInterval(asking);
+      clearInterval(polling);
       clearTimeout(until);
     },
   };
