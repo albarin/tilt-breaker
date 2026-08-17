@@ -1,7 +1,12 @@
 import { storage } from 'wxt/utils/storage';
-import type { Ratings } from '../api/chesscom-api';
 import { dayKeyOf } from '../core/day';
-import { DAY_RESET_HOUR, DEFAULT_SETTINGS, type GameRecord, type Settings } from '../core/types';
+import {
+  DAY_RESET_HOUR,
+  DEFAULT_SETTINGS,
+  type GameRecord,
+  type Ratings,
+  type Settings,
+} from '../core/types';
 
 /**
  * Snapshot of the API archive for the current day. Replaced wholesale on every sync: the
@@ -39,20 +44,62 @@ const snapshotItem = storage.defineItem<DaySnapshot | null>('local:daySnapshot',
 export const avatarItem = storage.defineItem<string | null>('local:avatar', { fallback: null });
 
 /**
- * What the detected account is rated in each game type, and whose ratings they are.
+ * What the detected account is rated in each game type, whose ratings they are, and which
+ * of the two places they came from.
  *
  * Carries the account for the reason the day snapshot does: signing in as someone else
  * must not leave their numbers beside your game types. The name is the whole check —
  * a stored rating is shown only while it still belongs to the account on screen.
  *
+ * The two sources are kept apart rather than merged on the way in, because one of them is
+ * always the better answer and neither writer can see the other's timing. `played` is the
+ * rating the archive left you on, which arrives with the count it belongs to; `profile` is
+ * what `/stats` says, read on a timer and only ever needed for a game type with no game in
+ * the months we fetch. Merged into one field, a profile read that happened to land after a
+ * game would put the older number back.
+ *
  * Written only by a fetch that succeeded, so a lost connection leaves the last rating we
- * knew where it is instead of blanking a row that was right a minute ago.
+ * knew where it is instead of blanking a row that was right a minute ago. A value stored
+ * by 1.3.0 in the older shape has neither field and reads as no ratings at all, which the
+ * next sync — seconds away — fills in.
  */
-export type StoredRatings = { username: string; ratings: Ratings };
+export type StoredRatings = { username: string; played: Ratings; profile: Ratings };
 
-export const ratingsItem = storage.defineItem<StoredRatings | null>('local:ratings', {
+const ratingsItem = storage.defineItem<StoredRatings | null>('local:ratings', {
   fallback: null,
 });
+
+export function getRatings(): Promise<StoredRatings | null> {
+  return ratingsItem.getValue();
+}
+
+export function watchRatings(onChange: (ratings: StoredRatings | null) => void): () => void {
+  return ratingsItem.watch(onChange);
+}
+
+/**
+ * Records ratings from one of the two sources, keeping the other's.
+ *
+ * Merged per game type rather than replaced: a type missing from this answer is one the
+ * source could not speak for — a month with no game of that type, a profile that does not
+ * list it — and dropping the number we already had would blank a row over a silence.
+ *
+ * A different account replaces the lot. Serialised like every read-modify-write here: the
+ * two sources write from different places and can land at once.
+ */
+export function rememberRatings(
+  username: string,
+  source: 'played' | 'profile',
+  ratings: Ratings,
+): Promise<void> {
+  return serialize(async () => {
+    const stored = await ratingsItem.getValue();
+    const previous: StoredRatings =
+      stored?.username === username ? stored : { username, played: {}, profile: {} };
+
+    await ratingsItem.setValue({ ...previous, [source]: { ...previous[source], ...ratings } });
+  });
+}
 
 /**
  * End of the most recent game we have ever seen, across days.

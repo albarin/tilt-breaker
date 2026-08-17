@@ -1,9 +1,10 @@
 import { i18n } from '#i18n';
-import type { Ratings } from '../api/chesscom-api';
+import type { Ratings } from '../core/types';
 import {
   avatarItem,
   detectedUsernameItem,
-  ratingsItem,
+  getRatings,
+  watchRatings,
   type StoredRatings,
 } from '../state/storage';
 
@@ -75,7 +76,7 @@ export function watchAccount(onChange?: () => void): { account: Account; stop: (
       avatarLive = true;
       avatar = value;
     }),
-    ratingsItem.watch((value) => {
+    watchRatings((value) => {
       ratingsLive = true;
       ratings = value;
     }),
@@ -85,7 +86,7 @@ export function watchAccount(onChange?: () => void): { account: Account; stop: (
     const [storedName, storedAvatar, storedRatings] = await Promise.all([
       detectedUsernameItem.getValue(),
       avatarItem.getValue(),
-      ratingsItem.getValue(),
+      getRatings(),
     ]);
     if (!nameLive) name = storedName;
     if (!avatarLive) avatar = storedAvatar;
@@ -100,11 +101,16 @@ export function watchAccount(onChange?: () => void): { account: Account; stop: (
       get avatar() {
         return avatar;
       },
+      // What a game type was last played to beats what the profile says, always: both are
+      // the same number until you finish a game, and for the minute after it the archive
+      // is the one that has heard.
+      //
       // Ratings and the name are stored apart and land in either order, so the pair is
       // checked here rather than trusted: a sign-in that has changed the name but whose
       // fetch has not landed yet would otherwise show the previous player's numbers.
       get ratings() {
-        return ratings !== null && ratings.username === name ? ratings.ratings : {};
+        if (ratings === null || ratings.username !== name) return {};
+        return { ...ratings.profile, ...ratings.played };
       },
       dropAvatar: () => {
         // Also settled: an image we just watched fail must not come back from a read

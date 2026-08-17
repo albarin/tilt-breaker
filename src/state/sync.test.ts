@@ -2,7 +2,12 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiGame } from '../core/games';
 import { countOf } from '../core/policy';
-import { rememberDetectedUsername, rememberLastGameEnd } from './storage';
+import {
+  getRatings,
+  rememberDetectedUsername,
+  rememberLastGameEnd,
+  rememberRatings,
+} from './storage';
 import { syncDay } from './sync';
 
 const ME = 'crabinloan';
@@ -201,5 +206,46 @@ describe('a game reported before the archive knows', () => {
     const published = apiGame('2', { end_time: endedAt('2026-08-08T12:00:00') });
     const outcome = await sync(archive(twentyMinutesAgo, published), true);
     expect(outcome.state.lastGameEndedAt).toBe(NOON.getTime());
+  });
+});
+
+/**
+ * The bug this fixes: the rating beside a game type was fetched from the profile on its
+ * own schedule, so the count moved the moment a game was published and the number next to
+ * it stayed as it was until some later refresh came round. It comes out of the same read
+ * now, and 1.3.0's shape is gone rather than migrated.
+ */
+describe('ratings out of the same read as the counts', () => {
+  const rated = (id: string, rating: number, overrides: Partial<ApiGame> = {}) =>
+    apiGame(id, { white: { username: ME, result: 'win', rating }, ...overrides });
+
+  it('records what the last game of each type left you on', async () => {
+    await sync(
+      archive(rated('1', 1200), rated('2', 1208), rated('3', 900, { time_class: 'rapid' })),
+    );
+    expect(await getRatings()).toEqual({
+      username: ME,
+      played: { bullet: 1208, rapid: 900 },
+      profile: {},
+    });
+  });
+
+  /** The profile's answer is the fallback, and a game must be free to overtake it. */
+  it('a played rating wins over the profile, and neither wipes the other', async () => {
+    await rememberRatings(ME, 'profile', { bullet: 1200, blitz: 1500 });
+    await sync(archive(rated('1', 1208)), true);
+
+    expect(await getRatings()).toEqual({
+      username: ME,
+      played: { bullet: 1208 },
+      profile: { bullet: 1200, blitz: 1500 },
+    });
+  });
+
+  /** A 304 carries no games, so it must not be read as "you are rated nothing". */
+  it('an unchanged archive leaves them alone', async () => {
+    await sync(archive(rated('1', 1208)));
+    await sync(vi.fn().mockResolvedValue(response(null, 304)), true);
+    expect((await getRatings())?.played).toEqual({ bullet: 1208 });
   });
 });

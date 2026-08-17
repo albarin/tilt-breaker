@@ -6,6 +6,14 @@ export const GAME_TYPES: readonly GameType[] = ['bullet', 'blitz', 'rapid'] as c
 export type GameResult = 'win' | 'loss' | 'draw';
 
 /**
+ * What you are rated in each game type.
+ *
+ * Partial because a game type you have never played has no rating, and a missing entry is
+ * the only honest way to say so: `0` is a rating, and it is not yours.
+ */
+export type Ratings = Partial<Record<GameType, number>>;
+
+/**
  * One counted game, as chess.com reports it. Keyed by game id, so re-reading the archive
  * is idempotent: a game can never be counted twice.
  */

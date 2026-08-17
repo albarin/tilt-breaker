@@ -1,4 +1,4 @@
-import { GAME_TYPES, type GameRecord, type GameResult, type GameType } from './types';
+import { GAME_TYPES, type GameRecord, type GameResult, type GameType, type Ratings } from './types';
 
 /** The subset of a chess.com monthly-archive game that we care about. */
 export type ApiGame = {
@@ -102,8 +102,12 @@ function ratingAfter(game: ApiGame, username: string): RatingAfter {
  *
  * An unrated game is the case that is genuinely known: it moved nothing, so it takes a
  * real `0` and leaves the running mark where it was.
+ *
+ * Hands back the mark each game type was left on, which is what you are rated now: the
+ * archive is walked in order here, so the last rating it saw is the current one and
+ * nothing else has to go looking for it.
  */
-function fillRatingDeltas(games: { record: GameRecord; rating: RatingAfter }[]): void {
+function fillRatingDeltas(games: { record: GameRecord; rating: RatingAfter }[]): Ratings {
   const previous = new Map<GameType, number>();
 
   for (const { record, rating } of [...games].sort((a, b) => a.record.endedAt - b.record.endedAt)) {
@@ -122,23 +126,36 @@ function fillRatingDeltas(games: { record: GameRecord; rating: RatingAfter }[]):
     if (before !== undefined) record.ratingDelta = rating - before;
     previous.set(record.gameType, rating);
   }
+
+  return Object.fromEntries(previous) as Ratings;
 }
 
 /**
- * Your games out of a raw archive, converted once.
+ * Your games out of a raw archive, converted once, and what they left you rated.
  *
- * The archive runs to hundreds of games mid-month and both readings below need the same
+ * The archive runs to hundreds of games mid-month and every reading below needs the same
  * work done to it, so it is done once and the results are shared.
+ *
+ * The ratings come out of the same walk as the deltas on purpose. They were fetched from
+ * the profile at first, and that made the number beside a game type the one thing on the
+ * popup arriving by a different road than the count beside it — so it lagged, by however
+ * long it took the next refresh to come round, on exactly the screen you open right after
+ * a game. Here they land together or not at all.
+ *
+ * Only the months fetched are covered, which is why the profile is still read: a game
+ * type you have not played this month has no game here to be rated by.
  */
-export function toRecords(apiGames: ApiGame[], username: string): GameRecord[] {
+export function toRecords(
+  apiGames: ApiGame[],
+  username: string,
+): { records: GameRecord[]; ratings: Ratings } {
   const rated: { record: GameRecord; rating: RatingAfter }[] = [];
   for (const apiGame of apiGames) {
     const record = toRecord(apiGame, username);
     if (record !== null) rated.push({ record, rating: ratingAfter(apiGame, username) });
   }
 
-  fillRatingDeltas(rated);
-  return rated.map(({ record }) => record);
+  return { records: rated.map(({ record }) => record), ratings: fillRatingDeltas(rated) };
 }
 
 /** Your games for the day, keyed by id so re-reading the archive never double-counts. */

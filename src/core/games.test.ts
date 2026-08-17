@@ -30,7 +30,7 @@ function apiGame(id: string, overrides: Partial<ApiGame> = {}): ApiGame {
 }
 
 const build = (apiGames: ApiGame[]) =>
-  gamesForDay({ records: toRecords(apiGames, ME), dayStart: DAY_START, dayEnd: DAY_END });
+  gamesForDay({ records: toRecords(apiGames, ME).records, dayStart: DAY_START, dayEnd: DAY_END });
 
 /** One of yours, ended `minutes` past noon, leaving you on `rating`. */
 function played(
@@ -48,7 +48,7 @@ function played(
 
 const deltas = (apiGames: ApiGame[]) =>
   toRecords(apiGames, ME)
-    .sort((a, b) => a.endedAt - b.endedAt)
+    .records.sort((a, b) => a.endedAt - b.endedAt)
     .map((record) => record.ratingDelta);
 
 describe('parseGameId', () => {
@@ -144,7 +144,9 @@ describe('toRecords', () => {
       black: { username: 'Otro', result: 'resigned' },
     });
     const correspondence = apiGame('2', { time_class: 'daily' });
-    expect(toRecords([theirs, correspondence, apiGame('3')], ME).map((r) => r.id)).toEqual(['3']);
+    expect(toRecords([theirs, correspondence, apiGame('3')], ME).records.map((r) => r.id)).toEqual([
+      '3',
+    ]);
   });
 });
 
@@ -215,8 +217,49 @@ describe('rating deltas', () => {
   });
 });
 
+/**
+ * The same walk that measures the deltas ends holding what you are rated now, which is
+ * what the popup shows beside each game type. Read from here rather than fetched, so it
+ * cannot be a game behind the count it sits next to.
+ */
+describe('ratings out of the archive', () => {
+  const ratings = (apiGames: ApiGame[]) => toRecords(apiGames, ME).ratings;
+
+  it('is what the last game of each game type left you on', () => {
+    const games = [
+      played('1', 0, 1200),
+      played('2', 5, 1208),
+      played('3', 10, 900, { time_class: 'rapid' }),
+    ];
+    expect(ratings(games)).toEqual({ blitz: 1208, rapid: 900 });
+  });
+
+  /** By time, not by position: the archive may hand the month over in any order. */
+  it('does not care what order the archive is in', () => {
+    expect(ratings([played('2', 5, 1208), played('1', 0, 1200)])).toEqual({ blitz: 1208 });
+  });
+
+  /** An unrated game leaves the rating where it was, so it must not report itself. */
+  it('is unmoved by an unrated game', () => {
+    const games = [played('1', 0, 1208), played('2', 5, 1208, { rated: false })];
+    expect(ratings(games)).toEqual({ blitz: 1208 });
+  });
+
+  /**
+   * A game the archive gave no rating for leaves the type unanswered rather than reporting
+   * the rating before it, which is a number you have not been rated since.
+   */
+  it('says nothing for a game type whose last game came without one', () => {
+    expect(ratings([played('1', 0, 1200), played('2', 5, undefined)])).toEqual({});
+  });
+
+  it('says nothing for a game type with no games at all', () => {
+    expect(ratings([])).toEqual({});
+  });
+});
+
 describe('lastGameEnd', () => {
-  const ends = (apiGames: ApiGame[]) => lastGameEnd(toRecords(apiGames, ME));
+  const ends = (apiGames: ApiGame[]) => lastGameEnd(toRecords(apiGames, ME).records);
 
   /** Deliberately unfiltered by day, so the gap between games survives midnight. */
   it('takes the latest end regardless of the day window', () => {

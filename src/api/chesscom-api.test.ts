@@ -205,7 +205,9 @@ describe('fetchRatings', () => {
       blitz: 987,
       rapid: 1455,
     });
-    expect(fetchImpl).toHaveBeenCalledWith('https://api.chess.com/pub/player/alba/stats');
+    expect(fetchImpl).toHaveBeenCalledWith('https://api.chess.com/pub/player/alba/stats', {
+      cache: 'no-store',
+    });
   });
 
   /**

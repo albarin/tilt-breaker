@@ -7,6 +7,7 @@ import {
   getSnapshot,
   lastGameEndItem,
   rememberLastGameEnd,
+  rememberRatings,
   serialize,
   setSnapshot,
   type DaySnapshot,
@@ -81,11 +82,21 @@ export async function syncDay(input: {
       ...(fetchImpl === undefined ? {} : { fetchImpl }),
     });
 
-    // Converted once and read twice: the day slice below, and the latest end here.
-    const records = archive.unchanged ? [] : toRecords(archive.games, username);
+    // Converted once and read three times: the day slice below, the latest end here, and
+    // what the last game of each type left you rated.
+    const { records, ratings } = archive.unchanged
+      ? { records: [], ratings: {} }
+      : toRecords(archive.games, username);
 
-    // Taken from the whole archive, not the day slice: the gap has to survive midnight.
-    if (!archive.unchanged) lastEnd = await rememberLastGameEnd(lastGameEnd(records));
+    if (!archive.unchanged) {
+      // Taken from the whole archive, not the day slice: the gap has to survive midnight.
+      lastEnd = await rememberLastGameEnd(lastGameEnd(records));
+
+      // Recorded where a game becomes known, so the rating beside a game type moves in the
+      // same beat as the count beside it. Asked for anywhere else it arrives later, which
+      // on the screen you open right after a game is the whole of the difference.
+      await rememberRatings(username, 'played', ratings);
+    }
 
     const snapshot = await serialize(async () => {
       const next: DaySnapshot = {

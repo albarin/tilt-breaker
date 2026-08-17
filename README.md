@@ -75,9 +75,10 @@ To check the count adds up, open the popup: it already shows what you have playe
 without waiting or playing, because it comes from the API. Beside each count it shows how
 those games went — wins, draws, losses — and what they did to your rating, which is the
 other half of the answer to how the day is going. Your current rating sits beside each
-game type's name, small and muted: the number the day's swing is a swing in, read from
-`/pub/player/{username}/stats` so it is there for a game type you have not played all
-month.
+game type's name, small and muted: the number that swing is a swing in. It comes out of
+the same read as the counts — the archive reports what each game left you rated — so it
+moves in the same beat as them, and falls back to `/pub/player/{username}/stats` for a
+game type with no game in the months fetched.
 
 ## What you can change
 

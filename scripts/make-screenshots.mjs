@@ -111,8 +111,13 @@ const SEED = {
     'https://images.chesscomfiles.com/uploads/v1/user/519936269.3685698e.200x200o.f9873ccc7cb4.png',
   // What the popup shows beside each game type's name. Under the account it is stored
   // for, because the popup checks the pair before showing a number — seeded to the wrong
-  // name, the listing image would come out with three names and no ratings.
-  ratings: { username: 'crabinloan', ratings: { bullet: 1204, blitz: 1187, rapid: 1455 } },
+  // name, the listing image would come out with three names and no ratings. `played` is
+  // where a rating for a game type played today comes from, which is all three of these.
+  ratings: {
+    username: 'crabinloan',
+    played: { bullet: 1204, blitz: 1187, rapid: 1455 },
+    profile: {},
+  },
   settings: {
     limits: { bullet: 8, blitz: 6, rapid: 3 },
     tilt: { losses: 3 },

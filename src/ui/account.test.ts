@@ -1,7 +1,7 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { avatarItem, detectedUsernameItem, ratingsItem } from '../state/storage';
+import { avatarItem, detectedUsernameItem, rememberRatings } from '../state/storage';
 import { watchAccount } from './account.svelte';
 
 beforeEach(() => {
@@ -59,10 +59,25 @@ describe('watchAccount', () => {
 
   it('carries the ratings of the account on screen', async () => {
     await detectedUsernameItem.setValue('crabinloan');
-    await ratingsItem.setValue({ username: 'crabinloan', ratings: { bullet: 1204 } });
+    await rememberRatings('crabinloan', 'played', { bullet: 1204 });
 
     const { account, stop } = watchAccount();
     await vi.waitFor(() => expect(account.ratings).toEqual({ bullet: 1204 }));
+    stop();
+  });
+
+  /**
+   * The profile is read on a timer and the archive with every game, so the two disagree
+   * for as long as it takes the slower one to come round — and for that minute the played
+   * one is the number you were just given.
+   */
+  it('prefers what a game type was last played to over what the profile says', async () => {
+    await detectedUsernameItem.setValue('crabinloan');
+    await rememberRatings('crabinloan', 'profile', { bullet: 1204, rapid: 1455 });
+    await rememberRatings('crabinloan', 'played', { bullet: 1192 });
+
+    const { account, stop } = watchAccount();
+    await vi.waitFor(() => expect(account.ratings).toEqual({ bullet: 1192, rapid: 1455 }));
     stop();
   });
 
@@ -73,13 +88,13 @@ describe('watchAccount', () => {
    */
   it('shows nothing while the stored ratings belong to someone else', async () => {
     await detectedUsernameItem.setValue('crabinloan');
-    await ratingsItem.setValue({ username: 'someoneelse', ratings: { bullet: 2400 } });
+    await rememberRatings('someoneelse', 'played', { bullet: 2400 });
 
     const { account, stop } = watchAccount();
     await vi.waitFor(() => expect(account.name).toBe('crabinloan'));
     expect(account.ratings).toEqual({});
 
-    await ratingsItem.setValue({ username: 'crabinloan', ratings: { bullet: 1204 } });
+    await rememberRatings('crabinloan', 'played', { bullet: 1204 });
     await vi.waitFor(() => expect(account.ratings).toEqual({ bullet: 1204 }));
     stop();
   });

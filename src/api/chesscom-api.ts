@@ -1,5 +1,5 @@
 import type { ApiGame } from '../core/games';
-import { GAME_TYPES, type GameType } from '../core/types';
+import { GAME_TYPES, type Ratings } from '../core/types';
 
 /**
  * Client for chess.com's public monthly archive.
@@ -177,18 +177,18 @@ export async function fetchAvatar(
   }
 }
 
-/** What you are rated in each game type. A type you have never played has no entry. */
-export type Ratings = Partial<Record<GameType, number>>;
-
 /**
- * The account's current rating per game type, or `null` if the profile cannot be read.
+ * The account's rating per game type as the profile has it, or `null` if it cannot be read.
  *
- * `https://api.chess.com/pub/player/{username}/stats`, which is a second endpoint on
- * purpose. The archive already carries the rating after every game, so today's number
- * could be read off the last game of each type — but only for the types played in the
- * month it covers, which on the first of the month is none of them and mid-month is
- * whichever ones you happen to have touched. This one answers for a game type you have
- * not played in a year, which is the only way a rating can sit beside all three names.
+ * `https://api.chess.com/pub/player/{username}/stats`, and only for the game types with no
+ * game in the months the archive covers. The archive carries the rating after every game,
+ * so for a type you have played this month that is the current number and it arrives with
+ * the count; this answers for a type you have not played since June, which is the only way
+ * a rating can sit beside all three names.
+ *
+ * `no-store` for the reason the archive request has it: the answer to "what am I rated" is
+ * being asked again because it may have changed, and the copy in the browser's cache is by
+ * definition the one from before.
  *
  * Never throws, for the reason `fetchAvatar` does not: a rating beside a name is
  * decoration, and it shares this client with the counting, which must not be disturbed by
@@ -200,7 +200,7 @@ export async function fetchRatings(
   fetchImpl: Fetcher = fetch,
 ): Promise<Ratings | null> {
   try {
-    const response = await fetchImpl(`${playerUrl(username)}/stats`);
+    const response = await fetchImpl(`${playerUrl(username)}/stats`, { cache: 'no-store' });
     if (!response.ok) return null;
 
     const body = (await response.json()) as Record<string, { last?: { rating?: number } }>;

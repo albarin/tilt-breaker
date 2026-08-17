@@ -7,10 +7,11 @@ import { fetchAvatar, fetchRatings } from '../api/chesscom-api';
 import {
   avatarItem,
   detectedUsernameItem,
+  getRatings,
   getSettings,
-  ratingsItem,
   rememberDetectedUsername,
   rememberLastGameEnd,
+  rememberRatings,
 } from '../state/storage';
 import { syncDay } from '../state/sync';
 
@@ -95,14 +96,7 @@ async function catchUp(counted: number): Promise<void> {
   for (const delay of CATCH_UP_MS) {
     await new Promise((done) => setTimeout(done, delay));
     const outcome = await syncDay({ now: Date.now(), force: true });
-    if (newestCounted(outcome.state.games) > counted) {
-      // That game moved a rating, and this is the moment it is published. Read again now
-      // rather than at the next half-hourly refresh: the popup you open straight after a
-      // game is the one where a stale number would be noticed.
-      const username = await detectedUsernameItem.getValue();
-      if (username !== null) void refreshRatings(username, true);
-      return;
-    }
+    if (newestCounted(outcome.state.games) > counted) return;
   }
 }
 
@@ -113,18 +107,21 @@ async function refreshAvatar(username: string, accountChanged: boolean): Promise
 }
 
 /**
- * Ratings for the account, refetched rather than fetched once like the avatar: they are
- * the one part of a profile that moves, and they move for exactly the games being counted.
+ * The profile's ratings, which are the fallback and not the answer: a game type played in
+ * a month we fetch is rated by the archive, in the same read as its count, and this is for
+ * the ones with no game there to be rated by.
  *
- * Unforced it only fills a gap — a fresh install, or a different sign-in — because it runs
- * off every message the content script sends. What keeps it current is the two moments
- * that can have changed it: the scheduled refresh, and a game landing in the archive.
+ * So it runs on the timer and on a new sign-in, and nothing hangs on how soon it lands.
+ * It used to be the only source, and being fetched on its own schedule is precisely what
+ * left the number beside a game type a game behind the count beside it.
+ *
+ * Unforced it only fills a gap, because it runs off every message the content script sends.
  */
 async function refreshRatings(username: string, force: boolean): Promise<void> {
-  if (!force && (await ratingsItem.getValue())?.username === username) return;
+  if (!force && (await getRatings())?.username === username) return;
 
   const ratings = await fetchRatings(username);
-  if (ratings !== null) await ratingsItem.setValue({ username, ratings });
+  if (ratings !== null) await rememberRatings(username, 'profile', ratings);
 }
 
 async function handle(message: Message): Promise<Status> {
