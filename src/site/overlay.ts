@@ -96,12 +96,35 @@ export const OVERLAY_CSS = `
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 16px;
   }
+  /*
+   * 30em is the narrowest this goes without costing a line.
+   *
+   * Measured across every string in the three catalogues: at 28em the longest one — the
+   * rematch explanation — takes a third line and "Descansando hasta las HH:MMh…" takes a
+   * second, and the widest title starts wrapping badly. At 30em every one of them breaks
+   * exactly where it did at 34em, and the card is 64px narrower for it.
+   */
   .card {
-    max-width: 34em; margin: 1.5em; padding: 3em 2.75em;
+    max-width: 30em; margin: 1.5em; padding: 3em 2.75em;
     border-radius: 0.9em; background: #262421; color: #f2f0ed;
     box-shadow: 0 1.5em 3em rgba(0, 0, 0, 0.45);
     text-align: center;
   }
+
+  /*
+   * Where the line actually breaks is \`text-wrap: balance\`, not the width above.
+   *
+   * Centred text with a full first line and a stub of a second reads as a mistake, and
+   * narrowing alone does not fix it: it moves which words fall short without evening
+   * anything out — the Spanish gap notice went from 534px + 68px to 438px + 164px, and
+   * other strings got worse as it shrank. Balanced, it is 310px + 292px, and every string
+   * in the three catalogues lands within 10% of even.
+   *
+   * Firefox 121 and Chrome 114 have it; on the 115 ESR this file supports it is ignored
+   * and the copy wraps as it always did, which is the thing being improved, not one being
+   * depended on.
+   */
+  h1, p { text-wrap: balance; }
   h1 { margin: 0 0 0.55em; font-size: 2.25em; line-height: 1.15; font-weight: 700; }
   p { margin: 0; font-size: 1.375em; line-height: 1.45; color: #d0cdc8; }
 

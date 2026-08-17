@@ -134,6 +134,16 @@ describe('stylesheet units', () => {
   it('pins an explicit font base so em is predictable', () => {
     expect(OVERLAY_CSS).toMatch(/font-size:\s*16px/);
   });
+
+  /**
+   * Centred copy with a full first line and a stub of a second reads as a mistake, and the
+   * width alone cannot fix it: measured across the three catalogues, narrowing only moved
+   * which words fell short. This is what evens them out, and it is easy to lose in a tidy-up
+   * because nothing looks wrong without it until you read a long string in Spanish.
+   */
+  it('balances the lines rather than leaving a stub of a second one', () => {
+    expect(OVERLAY_CSS).toMatch(/text-wrap:\s*balance/);
+  });
 });
 
 /**
