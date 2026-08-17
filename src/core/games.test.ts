@@ -6,6 +6,7 @@ import {
   lastGameEnd,
   newestCounted,
   parseGameId,
+  REPORT_SKEW_MS,
   toRecord,
   toRecords,
   type ApiGame,
@@ -277,6 +278,20 @@ describe('awaitingArchive', () => {
 
   it('the archive has it: nothing to wait for', () => {
     expect(waiting({ counted: ended })).toBe(false);
+  });
+
+  /**
+   * The bug this margin exists for. We stamp the ending when the modal shows up; the
+   * archive dates the same game a second or two earlier, by its own clock and in whole
+   * seconds. Asking for an exact catch-up meant asking for something that never happens,
+   * and "counting your last game…" sat there for five minutes over a correct count.
+   */
+  it('the archive dating it a moment earlier still counts as caught up', () => {
+    expect(waiting({ counted: ended - 2_000 })).toBe(false);
+  });
+
+  it('a game counted long before the one just played is no catch-up', () => {
+    expect(waiting({ counted: ended - REPORT_SKEW_MS - 1 })).toBe(true);
   });
 
   /** After long enough it is not late, it is never coming: an aborted game, or one the

@@ -188,6 +188,21 @@ export function newestCounted(games: Record<string, GameRecord>): number {
 export const ARCHIVE_DELAY_MS = 5 * 60_000;
 
 /**
+ * How far ahead of the archive our own stamp of the same ending can be.
+ *
+ * Two clocks mark one game. Ours is the moment the content script sees the game-over modal
+ * and the background hears about it, a second or two after the last move. The archive's is
+ * `end_time`, the real ending, in whole seconds. So the game we are waiting for arrives
+ * *older* than the stamp we are waiting on, and `stamp <= counted` — which is what this
+ * used to ask — was never true: the notice stayed on screen for the whole five minutes
+ * above, over counts that had been right for most of them.
+ *
+ * Wide enough to cover the detection lag several times over, and no game is played and
+ * finished inside it, so it can never swallow a second ending.
+ */
+export const REPORT_SKEW_MS = 30_000;
+
+/**
  * Is the count knowably behind — a game has ended, and the archive has not published it?
  *
  * The content script reports the end of a game the moment it happens, and chess.com's
@@ -207,6 +222,8 @@ export function awaitingArchive(input: {
   const { lastGameEndedAt, counted, dayStart, now } = input;
   if (lastGameEndedAt === undefined) return false;
   if (lastGameEndedAt < dayStart) return false;
-  if (lastGameEndedAt <= counted) return false;
+  // Not `<=`: the archive dates the game a little before we did, so an exact comparison
+  // would keep waiting for a game already counted. See REPORT_SKEW_MS.
+  if (counted >= lastGameEndedAt - REPORT_SKEW_MS) return false;
   return now - lastGameEndedAt < ARCHIVE_DELAY_MS;
 }
