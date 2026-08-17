@@ -2,6 +2,20 @@
 
 Copy for the developer dashboard. Kept here so it changes with the code.
 
+## Name
+
+Comes from the catalogues, so it is not typed into the dashboard at all, 75-character
+limit:
+
+> Tilt Breaker - Chess.com
+
+The interface says `Tilt Breaker`, which is the manifest's `short_name`. Worth knowing
+before a submission: the store's branding rules refuse a name that implies an app is
+another company's, and Chess.com is a trademark. Nothing else here claims the connection —
+the detailed description below ends by disclaiming it — but this is the field a reviewer
+reads first, and `Tilt Breaker for Chess.com` is the shape that has never been the reason
+for a rejection.
+
 ## Short description
 
 Comes from the manifest (`wxt.config.ts`), 132-character limit:

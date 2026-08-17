@@ -6,7 +6,14 @@
 # two of them in step.
 
 extension:
-  name: Tilt Breaker
+  # The listed name: the store shelf and the browser's extension list, where the site is
+  # half of what anyone is looking for.
+  name: Tilt Breaker - Chess.com
+  # What the interface calls it, and the manifest's own `short_name` rather than an
+  # invention of ours — this is the case that field exists for. The popup header is 22rem
+  # holding a title and an account, and the listed name takes two lines of it and pushes
+  # the account off the edge. Inside the popup the site is not news: you are on it.
+  shortName: Tilt Breaker
   description: 'Stop the one-more-game spiral on chess.com: daily caps per game type, a cooldown between games, no rematch.'
 
 common:

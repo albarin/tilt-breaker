@@ -16,6 +16,9 @@ export default defineConfig({
     // and spending a third of it on a non-affiliation disclaimer says nothing about what
     // the thing does. That goes in the store's detailed description, where reviewers look.
     name: '__MSG_extension_name__',
+    // What the browser falls back to where the full name does not fit — under the icon in
+    // the extensions list, and anywhere else a shelf is narrower than a sentence.
+    short_name: '__MSG_extension_shortName__',
     description: '__MSG_extension_description__',
     // Required for `__MSG_*__` to resolve at all, and the fallback when the browser runs
     // in a language we do not ship.

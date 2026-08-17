@@ -1,7 +1,9 @@
 # Català. Traducció d'`en.yml`: les claus i els `$1` són els mateixos, la còpia no.
 
 extension:
-  name: Tilt Breaker
+  # Nom propi: no es tradueix en cap de les dues formes.
+  name: Tilt Breaker - Chess.com
+  shortName: Tilt Breaker
   description: "Talla l'espiral d'una partida més a chess.com: límit diari per modalitat, descans entre partides i sense revenja."
 
 common:

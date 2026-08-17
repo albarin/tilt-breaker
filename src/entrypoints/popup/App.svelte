@@ -40,7 +40,8 @@
 
 <main>
   <header>
-    <h1>{i18n.t('extension.name')}</h1>
+    <!-- The short name: see the catalogue. This header is a title and an account in 22rem. -->
+    <h1>{i18n.t('extension.shortName')}</h1>
     {#if account.name !== null}
       <span class="account">
         <!-- Decoration: if it fails to load it just goes away, name and all else stay. -->
