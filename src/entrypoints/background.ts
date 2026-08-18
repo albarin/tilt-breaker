@@ -1,7 +1,7 @@
 import { evaluate, gapBlock, summarize, type Decision } from '../core/policy';
-import { awaitingArchive, newestCounted } from '../core/games';
+import { ARCHIVE_DELAY_MS, awaitingArchive, newestCounted } from '../core/games';
 import { dayKeyOf, dayStartMs } from '../core/day';
-import { DAY_RESET_HOUR, GAME_TYPES, type GameType } from '../core/types';
+import { DAY_RESET_HOUR, GAME_TYPES, type DayState, type GameType } from '../core/types';
 import type { Message, Status } from '../messaging';
 import { fetchAvatar, fetchRatings } from '../api/chesscom-api';
 import {
@@ -23,21 +23,38 @@ const REFRESH_MINUTES = 30;
  *
  * The content script tells us the moment a game ends; chess.com's archive publishes it a
  * few seconds later. One read at the moment of the report — which is what this used to do
- * — is therefore a read that is certain to be too early, and the next scheduled one is
- * half an hour away. So the report starts a short chain of re-reads, and they stop the
- * moment the game shows up.
+ * — is therefore a read that is certain to be too early.
  *
- * Spaced out rather than tight: each one is a conditional request the server answers 304
- * until there is something new, and the tail is there for the times it takes a minute.
+ * Tight at the start and stretching out, because that is where the answer usually is: the
+ * first four reads are inside seven seconds, and each one is a conditional request the
+ * server answers 304 with no body at all.
+ *
+ * It adds up to four and a half minutes, against the five that `ARCHIVE_DELAY_MS` calls
+ * the outer edge of "any moment now". The chain used to stop at two, and a game published
+ * after that waited for the half-hourly refresh — half an hour of a count that was short
+ * by the game you had opened the popup to see.
  */
-const CATCH_UP_MS = [4_000, 8_000, 15_000, 30_000, 60_000];
+const CATCH_UP_MS = [
+  1_000, 1_000, 2_000, 3_000, 5_000, 8_000, 13_000, 21_000, 34_000, 55_000, 60_000, 60_000,
+];
+
+/**
+ * Which of those reads asks for the month in full rather than conditionally.
+ *
+ * A conditional request cannot see past a validator that answers "nothing changed", and
+ * nothing else in the chain can tell that answer apart from the truth. So a few of them —
+ * the twelfth second, the fifty-fourth, and once more after three minutes — pay for a
+ * whole month rather than leave a game we know has ended sitting behind a 304.
+ */
+const FULL_READS = new Set([4, 7, 10]);
 
 /**
  * The same job, once, for after the worker is gone.
  *
  * A service worker is killed when it goes idle, taking the timers above with it. Chrome
  * will not schedule an alarm sooner than 30 seconds, which is why this backs the chain up
- * rather than replacing it.
+ * rather than replacing it — and why it resumes the chase rather than reading once: the
+ * game that had not arrived when the worker died is exactly the one still to wait for.
  */
 const CATCH_UP_ALARM = 'catch-up';
 
@@ -62,7 +79,8 @@ export default defineBackground(() => {
   // current the moment you open it.
   browser.alarms.create(REFRESH_ALARM, { periodInMinutes: REFRESH_MINUTES });
   browser.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === REFRESH_ALARM || alarm.name === CATCH_UP_ALARM) void refresh();
+    if (alarm.name === REFRESH_ALARM) void refresh();
+    if (alarm.name === CATCH_UP_ALARM) void resumeCatchUp();
   });
   browser.runtime.onStartup.addListener(() => void refresh());
   browser.runtime.onInstalled.addListener(() => void refresh());
@@ -91,13 +109,51 @@ async function refresh(): Promise<void> {
  * rather than having to wait for it.
  */
 async function catchUp(counted: number): Promise<void> {
+  const startedAt = Date.now();
   browser.alarms.create(CATCH_UP_ALARM, { delayInMinutes: 0.5 });
 
-  for (const delay of CATCH_UP_MS) {
+  for (const [round, delay] of CATCH_UP_MS.entries()) {
     await new Promise((done) => setTimeout(done, delay));
-    const outcome = await syncDay({ now: Date.now(), force: true });
-    if (newestCounted(outcome.state.games) > counted) return;
+
+    const now = Date.now();
+    if (now - startedAt > ARCHIVE_DELAY_MS) break;
+
+    const outcome = await syncDay({ now, force: true, fresh: FULL_READS.has(round) });
+    if (newestCounted(outcome.state.games) > counted) {
+      await browser.alarms.clear(CATCH_UP_ALARM);
+      return;
+    }
   }
+}
+
+/**
+ * Is the count knowably behind — a game of yours has ended and the archive has not
+ * published it yet? The one question both the chase and the popup's notice turn on, asked
+ * in one place so they cannot disagree about it.
+ */
+function awaitingPublication(state: DayState, now: number): boolean {
+  return awaitingArchive({
+    lastGameEndedAt: state.lastGameEndedAt,
+    counted: newestCounted(state.games),
+    dayStart: dayStartMs(dayKeyOf(now, DAY_RESET_HOUR), DAY_RESET_HOUR),
+    now,
+  });
+}
+
+/**
+ * Picks the chase back up after the worker was killed in the middle of it.
+ *
+ * Reads in full rather than conditionally: this runs at least half a minute after the
+ * game was reported, which is long past the point where "nothing changed" is the answer
+ * to believe. If the game is in by now there is nothing to resume, and if it is not, the
+ * chase starts again — bounded by the same five minutes, after which a game that has not
+ * appeared is one that never will.
+ */
+async function resumeCatchUp(): Promise<void> {
+  const outcome = await syncDay({ now: Date.now(), force: true, fresh: true });
+  if (!awaitingPublication(outcome.state, Date.now())) return;
+
+  await catchUp(newestCounted(outcome.state.games));
 }
 
 /** Fetched once per account. Cosmetic, so it never blocks answering the content script. */
@@ -167,12 +223,7 @@ async function handle(message: Message): Promise<Status> {
   // would race the storage write queue, which serialises within one context only.
   if (message.view === true) {
     const gap = gapBlock(outcome.state, settings, now);
-    const settling = awaitingArchive({
-      lastGameEndedAt: outcome.state.lastGameEndedAt,
-      counted: newestCounted(outcome.state.games),
-      dayStart: dayStartMs(dayKeyOf(now, DAY_RESET_HOUR), DAY_RESET_HOUR),
-      now,
-    });
+    const settling = awaitingPublication(outcome.state, now);
     status.view = {
       rows: summarize(outcome.state, settings, now),
       ...(gap === null ? {} : { gapUntil: gap.until }),

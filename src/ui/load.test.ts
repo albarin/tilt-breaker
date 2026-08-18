@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from '../messaging';
-import { ASK_EVERY_MS, ASK_FOR_MS, watchView } from './load';
+import {
+  ASK_EVERY_MS,
+  ASK_FOR_MS,
+  ASK_SETTLING_EVERY_MS,
+  ASK_SETTLING_FOR_MS,
+  watchView,
+} from './load';
 import type { View } from '../messaging';
 
 vi.mock('../messaging', () => ({ sendMessage: vi.fn() }));
@@ -114,6 +120,43 @@ describe('watchView', () => {
     day.stop();
 
     expect(seen).toEqual([view(2), view(3)]);
+  });
+
+  /**
+   * The one moment a second is worth asking for: the background has been told a game
+   * ended, the archive has not published it, and the popup is saying so on screen. Waiting
+   * three seconds to ask again is three seconds of watching a number that is known wrong.
+   */
+  it('asks every second while a game is on its way', async () => {
+    const settling = { ...view(2), settling: true as const };
+    answers(settling, settling, settling);
+    const day = watchView(() => {});
+
+    await vi.advanceTimersByTimeAsync(ASK_SETTLING_EVERY_MS * 2);
+    day.stop();
+
+    expect(asked).toHaveBeenCalledTimes(3);
+  });
+
+  /**
+   * And for as long as the chase behind it lasts. Two minutes is the window for a popup
+   * left open on a settled day; a game still on its way is the case that window was too
+   * short for, and the archive's own outer edge is five.
+   */
+  it('keeps asking past the ordinary window while it is still waiting', async () => {
+    answers(...Array.from({ length: 400 }, () => ({ ...view(2), settling: true as const })));
+    const day = watchView(() => {});
+
+    await vi.advanceTimersByTimeAsync(ASK_FOR_MS + ASK_SETTLING_EVERY_MS * 10);
+    const during = asked.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(ASK_SETTLING_FOR_MS);
+    day.stop();
+
+    expect(during).toBeGreaterThan(ASK_FOR_MS / ASK_SETTLING_EVERY_MS);
+    expect(asked.mock.calls.length).toBeLessThanOrEqual(
+      ASK_SETTLING_FOR_MS / ASK_SETTLING_EVERY_MS + 1,
+    );
   });
 
   // Nothing arrives after the popup is gone, including an answer already in flight.

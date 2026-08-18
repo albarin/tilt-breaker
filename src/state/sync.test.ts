@@ -210,6 +210,35 @@ describe('a game reported before the archive knows', () => {
 });
 
 /**
+ * A conditional request is the right default and the wrong last word. The server answers
+ * "nothing changed" and nothing downstream can tell that apart from the truth, so a game
+ * we have been told has ended can sit behind a 304 — and the whole count with it.
+ */
+describe('asking for the month in full', () => {
+  it('sends no stamp when told to read fresh', async () => {
+    const fetchImpl = archive(apiGame('1'));
+    await sync(fetchImpl, true);
+
+    const fresh = archive(apiGame('1'), apiGame('2'));
+    await syncDay({ now: NOON.getTime(), fetchImpl: fresh, force: true, fresh: true });
+
+    expect(fresh).toHaveBeenCalledWith(expect.any(String), { headers: {}, cache: 'no-store' });
+  });
+
+  /** The stamp is still stored and still used the moment the chase is over. */
+  it('goes back to asking conditionally', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response({ games: [apiGame('1')] }, 200, 'W/"x"'));
+    await sync(fetchImpl, true);
+    await sync(fetchImpl, true);
+
+    expect(fetchImpl).toHaveBeenLastCalledWith(expect.any(String), {
+      headers: { 'If-None-Match': 'W/\"x\"' },
+      cache: 'no-store',
+    });
+  });
+});
+
+/**
  * The bug this fixes: the rating beside a game type was fetched from the profile on its
  * own schedule, so the count moved the moment a game was published and the number next to
  * it stayed as it was until some later refresh came round. It comes out of the same read

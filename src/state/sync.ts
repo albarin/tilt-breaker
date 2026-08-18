@@ -35,9 +35,18 @@ export type SyncOutcome =
 export async function syncDay(input: {
   now: number;
   force?: boolean;
+  /**
+   * Ask for the months in full, ignoring the stored `ETag`s.
+   *
+   * A conditional request cannot see past a validator that says "nothing changed", and
+   * that is the one answer a game we know has ended must not be left sitting behind. Used
+   * only while chasing such a game, and rarely even then: it is a megabyte of month
+   * against a count that is knowably wrong.
+   */
+  fresh?: boolean;
   fetchImpl?: Fetcher;
 }): Promise<SyncOutcome> {
-  const { now, force = false, fetchImpl } = input;
+  const { now, force = false, fresh = false, fetchImpl } = input;
   const dayKey = dayKeyOf(now, DAY_RESET_HOUR);
   // Independent keys, so they are read together: this runs on every message a chess.com
   // tab sends, and three sequential reads are three storage round trips before any
@@ -78,7 +87,7 @@ export async function syncDay(input: {
       endMs: dayEnd,
       // `?? {}` for the snapshot a previous version wrote, which has no ETags: it asks
       // unconditionally once and is rewritten in the current shape below.
-      etags: stored.etags ?? {},
+      etags: fresh ? {} : (stored.etags ?? {}),
       ...(fetchImpl === undefined ? {} : { fetchImpl }),
     });
 

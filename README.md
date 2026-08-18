@@ -144,10 +144,17 @@ and the gap starts from there. The stored end never moves backwards, so the arch
 only ever confirm it.
 
 The counts have no such shortcut — a game is counted when the archive says so — so that
-report also starts a chain of re-reads, at 4s, 8s, 15s, 30s and 60s, stopping the moment
-the game appears. Between the two, the day is knowably short by exactly that game, and
+report also starts a chase: re-reads at 1s, 2s, 4s, 7s, 12s and on out to four and a half
+minutes, stopping the moment the game appears. Nearly all of them are conditional requests
+answered 304 with no body; three are not, because a validator saying "nothing changed" is
+the one answer a conditional request cannot see past, and a game we have been told has
+ended must not sit behind it. A service worker that is killed mid-chase takes its timers
+with it, so an alarm picks the chase back up rather than reading once.
+
+Between the report and the publication the day is knowably short by exactly that game, and
 both surfaces say so rather than showing a settled-looking number: the popup with
-"Counting your last game…", and by asking again every three seconds while it is open.
+"Counting your last game…", and by asking every second — rather than every three — for as
+long as the chase behind it lasts.
 
 Beyond that, the only thing read from the site is which button you clicked. `location.pathname` is
 polled every 400 ms to refresh the count on page changes; `history.pushState` is **not**
