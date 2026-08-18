@@ -1,8 +1,9 @@
 # Català. Traducció d'`en.yml`: les claus i els `$1` són els mateixos, la còpia no.
 
 extension:
-  # Nom propi: no es tradueix en cap de les dues formes.
-  name: Tilt Breaker - Chess.com
+  # Nom propi: l'única cosa traduïble és el "for" que separa l'extensió del lloc, i
+  # traduir-lo és precisament el que el manté llegint-se com el que és.
+  name: Tilt Breaker per a Chess.com
   shortName: Tilt Breaker
   description: "Talla l'espiral d'una partida més a chess.com: límit diari per modalitat, descans entre partides i sense revenja."
 

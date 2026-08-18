@@ -1,8 +1,9 @@
 # Español. Traducción de `en.yml`: las claves y los `$1` son los mismos, la copia no.
 
 extension:
-  # Nombre propio: no se traduce en ninguna de las dos formas.
-  name: Tilt Breaker - Chess.com
+  # Nombre propio: lo único traducible es el "for" que separa la extensión del sitio, y
+  # traducirlo es justamente lo que lo mantiene leyéndose como lo que es.
+  name: Tilt Breaker para Chess.com
   shortName: Tilt Breaker
   description: 'Corta la espiral de una partida más en chess.com: tope diario por modalidad, descanso entre partidas y sin revancha.'
 

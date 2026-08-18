@@ -8,7 +8,13 @@
 extension:
   # The listed name: the store shelf and the browser's extension list, where the site is
   # half of what anyone is looking for.
-  name: Tilt Breaker - Chess.com
+  #
+  # "for", and not a dash. Both read the same to a player and not at all the same to a
+  # reviewer: store branding rules refuse a name that implies an app is another company's,
+  # Chess.com is a trademark, and `Tilt Breaker - Chess.com` is the shape that reads like
+  # something Chess.com published. The word is the disclaimer, and the only part of the
+  # name a translation touches.
+  name: Tilt Breaker for Chess.com
   # What the interface calls it, and the manifest's own `short_name` rather than an
   # invention of ours — this is the case that field exists for. The popup header is 22rem
   # holding a title and an account, and the listed name takes two lines of it and pushes

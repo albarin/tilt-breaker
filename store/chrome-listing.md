@@ -7,14 +7,17 @@ Copy for the developer dashboard. Kept here so it changes with the code.
 Comes from the catalogues, so it is not typed into the dashboard at all, 75-character
 limit:
 
-> Tilt Breaker - Chess.com
+> Tilt Breaker for Chess.com
 
-The interface says `Tilt Breaker`, which is the manifest's `short_name`. Worth knowing
-before a submission: the store's branding rules refuse a name that implies an app is
-another company's, and Chess.com is a trademark. Nothing else here claims the connection —
-the detailed description below ends by disclaiming it — but this is the field a reviewer
-reads first, and `Tilt Breaker for Chess.com` is the shape that has never been the reason
-for a rejection.
+The interface says `Tilt Breaker`, which is the manifest's `short_name`.
+
+"for" is doing work here. The store's branding rules refuse a name that implies an app is
+another company's, Chess.com is a trademark, and this is the field a reviewer reads before
+any of the copy below — where the non-affiliation is spelled out and where they may never
+get to. `Tilt Breaker - Chess.com` reads like something Chess.com published; one word makes
+it read like what it is.
+
+The translated catalogues turn only that word: `para` in Spanish, `per a` in Catalan.
 
 ## Short description
 
