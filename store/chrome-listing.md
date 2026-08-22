@@ -45,7 +45,7 @@ No rematches. The rematch button is blocked always, quota or no quota. It is the
 
 HOW IT COUNTS
 
-From chess.com's own public API, not by watching the page. So it knows the real game type and result of every game, draws included, and it counts what you play on your phone too.
+From chess.com's own public API, not by watching the page. So it knows the real game type and result of every game, draws included, and it counts what you play on your phone too. The page is read for one thing: the moment a game ends. chess.com takes a little while to publish a finished game, and that wait used to be a minute in which the cap was short by the game you had just played.
 
 WHAT IT WILL NOT DO
 

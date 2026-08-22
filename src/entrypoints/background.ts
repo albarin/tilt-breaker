@@ -3,13 +3,14 @@ import { ARCHIVE_DELAY_MS, awaitingArchive, newestCounted } from '../core/games'
 import { dayKeyOf, dayStartMs } from '../core/day';
 import { DAY_RESET_HOUR, GAME_TYPES, type DayState, type GameType } from '../core/types';
 import type { Message, Status } from '../messaging';
-import { fetchAvatar, fetchRatings } from '../api/chesscom-api';
+import { fetchAvatar, fetchStats } from '../api/chesscom-api';
 import {
   avatarItem,
   detectedUsernameItem,
   getRatings,
   getSettings,
   rememberDetectedUsername,
+  rememberFinishedGame,
   rememberLastGameEnd,
   rememberRatings,
 } from '../state/storage';
@@ -119,7 +120,10 @@ async function catchUp(counted: number): Promise<void> {
     if (now - startedAt > ARCHIVE_DELAY_MS) break;
 
     const outcome = await syncDay({ now, force: true, fresh: FULL_READS.has(round) });
-    if (newestCounted(outcome.state.games) > counted) {
+    // Both halves of the question, not just the stamp: a game can arrive in the archive
+    // while another one chess.com has counted is still missing, and stopping on the first
+    // would leave the second to the half-hourly refresh.
+    if (newestCounted(outcome.state.games) > counted && !awaitingPublication(outcome.state, now)) {
       await browser.alarms.clear(CATCH_UP_ALARM);
       return;
     }
@@ -130,8 +134,16 @@ async function catchUp(counted: number): Promise<void> {
  * Is the count knowably behind — a game of yours has ended and the archive has not
  * published it yet? The one question both the chase and the popup's notice turn on, asked
  * in one place so they cannot disagree about it.
+ *
+ * Two ways to know it, and they cover different holes. The page told us a game ended,
+ * which needs a chess.com tab open and reaches only a few minutes past the ending. Or
+ * chess.com's own record counts a game the archive has not listed, which needs nothing
+ * open, catches games played on the phone, and holds for as long as the archive stays
+ * behind — which on 22 Aug 2026 was hours.
  */
 function awaitingPublication(state: DayState, now: number): boolean {
+  if (GAME_TYPES.some((gameType) => (state.pending?.[gameType] ?? 0) > 0)) return true;
+
   return awaitingArchive({
     lastGameEndedAt: state.lastGameEndedAt,
     counted: newestCounted(state.games),
@@ -176,8 +188,8 @@ async function refreshAvatar(username: string, accountChanged: boolean): Promise
 async function refreshRatings(username: string, force: boolean): Promise<void> {
   if (!force && (await getRatings())?.username === username) return;
 
-  const ratings = await fetchRatings(username);
-  if (ratings !== null) await rememberRatings(username, 'profile', ratings);
+  const stats = await fetchStats(username);
+  if (stats !== null) await rememberRatings(username, 'profile', stats.ratings);
 }
 
 async function handle(message: Message): Promise<Status> {
@@ -199,6 +211,12 @@ async function handle(message: Message): Promise<Status> {
   // Recorded before asking the API, which will not know about it for a few seconds yet.
   // rememberLastGameEnd never moves backwards, so the archive can only confirm this.
   if (message.gameEnded === true) await rememberLastGameEnd(now);
+
+  // Ordered ahead of the sync for the same reason: the sync reads this and must see the
+  // game that has just been reported, or the count it answers with is the one from before.
+  if (message.finished !== undefined) {
+    await rememberFinishedGame(message.finished.id, message.finished.gameType);
+  }
 
   const [settings, outcome] = await Promise.all([
     pendingSettings,

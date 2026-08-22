@@ -1,38 +1,28 @@
 import { GAME_TYPES, type GameRecord, type GameResult, type GameType, type Ratings } from './types';
 
-/** The subset of a chess.com monthly-archive game that we care about. */
+/**
+ * The subset of an archive game that we care about, as `parseArchive` hands it over.
+ *
+ * Not a wire format: the archive is PGN, and `api/pgn.ts` is the only file that knows it.
+ * This is what is left once the moves, the openings and the sentences are gone.
+ */
 export type ApiGame = {
   url: string;
+  /** `'blitz'`, `'daily'`, `'unknown'` — anything not a live type is simply not counted. */
   time_class: string;
   /** Epoch in **seconds**, not milliseconds. */
   end_time: number;
-  /** Absent is read as rated: that is the overwhelming case, and `rating` decides anyway. */
-  rated?: boolean;
   white: Side;
   black: Side;
 };
 
-/** `rating` is optional because it is the archive's word, not ours, and a rating we did
- * not get is a rating we must not invent: it leaves the game's delta unknown. */
-type Side = { username: string; result: string; rating?: number };
-
 /**
- * Result codes that mean a draw. Anything that is neither `'win'` nor listed here is a
- * loss: `checkmated`, `resigned`, `timeout`, `abandoned`, and so on.
+ * One player's half of a game.
+ *
+ * `rating` is optional because it is the archive's word, not ours, and a rating we did
+ * not get is a rating we must not invent: it leaves the game's delta unknown.
  */
-const DRAW_CODES = new Set([
-  'agreed',
-  'repetition',
-  'stalemate',
-  'insufficient',
-  '50move',
-  'timevsinsufficient',
-]);
-
-function resultFrom(code: string): GameResult {
-  if (code === 'win') return 'win';
-  return DRAW_CODES.has(code) ? 'draw' : 'loss';
-}
+type Side = { username: string; result: GameResult; rating?: number };
 
 /** `https://www.chess.com/game/live/123456789` → `'123456789'`. */
 export function parseGameId(url: string): string | null {
@@ -68,22 +58,23 @@ export function toRecord(game: ApiGame, username: string): GameRecord | null {
     // The only place the archive's seconds become milliseconds. Everything downstream
     // reads `endedAt` and never touches `end_time` again.
     endedAt: game.end_time * 1000,
-    result: resultFrom(side.result),
+    result: side.result,
   };
 }
 
 /**
- * What the archive says your rating was after a game: the number it left you on,
- * `'unrated'` when the game could not have moved it, or `null` when it did not say.
+ * What the archive says your rating was after a game: the number it left you on, or
+ * `null` when it did not say.
  *
- * The three are kept apart because only the middle one is a known zero. An unrated game
- * reports a rating all the same — the one it left untouched — and taking it would be
- * harmless here but wrong as a mark for the next game to be measured against.
+ * An unrated game needs no case of its own, though it used to have one. The archive
+ * reports a rating for it all the same — the one it left untouched — so it measures as a
+ * change of zero and leaves the running mark exactly where it was, which is the truth
+ * about it stated by arithmetic instead of by a flag. The flag is gone with the JSON:
+ * PGN carries no "rated" header, and it turned out not to be carrying anything.
  */
-type RatingAfter = number | 'unrated' | null;
+type RatingAfter = number | null;
 
 function ratingAfter(game: ApiGame, username: string): RatingAfter {
-  if (game.rated === false) return 'unrated';
   return sideOf(game, username)?.rating ?? null;
 }
 
@@ -100,9 +91,6 @@ function ratingAfter(game: ApiGame, username: string): RatingAfter {
  * placed at all; both stay `undefined`, which is the caller's cue to say nothing rather
  * than to add a zero that would read as "you held your rating".
  *
- * An unrated game is the case that is genuinely known: it moved nothing, so it takes a
- * real `0` and leaves the running mark where it was.
- *
  * Hands back the mark each game type was left on, which is what you are rated now: the
  * archive is walked in order here, so the last rating it saw is the current one and
  * nothing else has to go looking for it.
@@ -111,10 +99,6 @@ function fillRatingDeltas(games: { record: GameRecord; rating: RatingAfter }[]):
   const previous = new Map<GameType, number>();
 
   for (const { record, rating } of [...games].sort((a, b) => a.record.endedAt - b.record.endedAt)) {
-    if (rating === 'unrated') {
-      record.ratingDelta = 0;
-      continue;
-    }
     // No rating to place it by. It keeps no delta, and neither can whatever comes next:
     // measuring that against the last rating we did see would hand it this game's change
     // as well as its own.

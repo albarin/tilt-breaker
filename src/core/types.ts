@@ -71,6 +71,18 @@ export type DayState = {
   dayKey: string;
   games: Record<string, GameRecord>;
   /**
+   * Games chess.com has counted that the archive has not handed over yet, per game type.
+   *
+   * They have no id, no result and no clock: `/stats` reports totals, not games. So they
+   * are held apart from `games` rather than faked into it — countable, and nothing else.
+   * A game here is one that is known to exist and not yet known to be anything.
+   *
+   * They count against the quota all the same. Of the two ways to be wrong about a game
+   * chess.com has confirmed and the archive is late with, only one of them lets you keep
+   * playing.
+   */
+  pending?: Partial<Record<GameType, number>>;
+  /**
    * End of your most recent game of any type, even if it was yesterday.
    *
    * Kept apart from `games` because the gap has to survive the day rollover: finishing at

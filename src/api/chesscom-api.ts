@@ -1,28 +1,30 @@
 import type { ApiGame } from '../core/games';
-import { GAME_TYPES, type Ratings } from '../core/types';
+import { parseArchive } from './pgn';
+import { GAME_TYPES, type GameType, type Ratings } from '../core/types';
 
 /**
  * Client for chess.com's public monthly archive.
  *
- * `https://api.chess.com/pub/player/{username}/games/{YYYY}/{MM}`
+ * `https://api.chess.com/pub/player/{username}/games/{YYYY}/{MM}/pgn`
  *
  * No key, no session: it is public data. This is where the extension's counts come from,
  * so it knows the real game type and result instead of guessing from the page.
  *
- * Measured against the live server: it answers `cache-control: public, max-age=5` and a
- * game shows up in the archive seconds after it ends. The 12-hour refresh the docs
- * mention belongs to other endpoints, not this one.
+ * **The PGN representation, not the JSON one.** Both exist at that path and hold the same
+ * games; `api/pgn.ts` says at length why the choice is not cosmetic. In short: on 22 Aug
+ * 2026 the JSON copy was measured pinned in chess.com's CDN for over half an hour against
+ * its own `max-age=5`, ETag and all, and the PGN copy of the same games revalidated on
+ * every request.
  *
- * The archive is large (~1 MB mid-month, ~280 KB over the wire), and this is polled every
- * few seconds while a finished game is on its way — so requests are conditional and the
- * server answers 304 with no body when you have not played since last time.
+ * The archive is large — around a megabyte mid-month, and chess.com does not compress it —
+ * and this is polled every few seconds while a finished game is on its way, so requests
+ * are conditional and the server answers 304 with no body when you have not played since
+ * last time.
  *
  * Conditional on the **ETag**, not on `Last-Modified`. The server sends both, but measured
  * against it, `If-Modified-Since` is ignored: echoing its own stamp back — in its own
  * format, in RFC 1123, or a second earlier — answers 200 with the whole archive every
- * time. `If-None-Match` answers 304. So the caching this file claimed to do was not
- * happening at all: every sync downloaded and parsed the full month, which on a slow
- * connection is most of the wait after a game ends.
+ * time. `If-None-Match` answers 304.
  *
  * `ETag` is not a CORS-safelisted response header, unlike `Last-Modified`. It is readable
  * here because the background holds `api.chess.com` in `host_permissions`, which exempts
@@ -67,7 +69,7 @@ function playerUrl(username: string): string {
 }
 
 export function archiveUrl(username: string, month: Month): string {
-  return `${playerUrl(username)}/games/${monthKey(month).replace('-', '/')}`;
+  return `${playerUrl(username)}/games/${monthKey(month).replace('-', '/')}/pgn`;
 }
 
 /** `ETag`s per month, so we only ask for what changed. */
@@ -110,9 +112,8 @@ async function fetchMonth(
   if (response.status === 404) return { games: [] };
   if (!response.ok) throw new Error(`chess.com API responded ${response.status}`);
 
-  const body = (await response.json()) as { games?: ApiGame[] };
   const etag = response.headers.get('etag') ?? undefined;
-  return { games: body.games ?? [], ...(etag === undefined ? {} : { etag }) };
+  return { games: parseArchive(await response.text()), ...(etag === undefined ? {} : { etag }) };
 }
 
 /** Every game from the months covering the given window. */
@@ -178,38 +179,77 @@ export async function fetchAvatar(
 }
 
 /**
- * The account's rating per game type as the profile has it, or `null` if it cannot be read.
+ * What `/stats` says about the account: what it is rated per game type, and how many games
+ * it has ever finished in each.
  *
- * `https://api.chess.com/pub/player/{username}/stats`, and only for the game types with no
- * game in the months the archive covers. The archive carries the rating after every game,
- * so for a type you have played this month that is the current number and it arrives with
- * the count; this answers for a type you have not played since June, which is the only way
- * a rating can sit beside all three names.
- *
- * `no-store` for the reason the archive request has it: the answer to "what am I rated" is
- * being asked again because it may have changed, and the copy in the browser's cache is by
- * definition the one from before.
- *
- * Never throws, for the reason `fetchAvatar` does not: a rating beside a name is
- * decoration, and it shares this client with the counting, which must not be disturbed by
- * it. A missing type is left out rather than sent as `0` — "never played" and "rated 0"
- * are not the same thing, and only one of them is true.
+ * A type with no entry is one the profile did not speak for — never played, or not listed.
+ * Left out rather than sent as `0`, because "never played" and "played none, rated 0" are
+ * not the same thing and only one of them is true.
  */
-export async function fetchRatings(
+export type Stats = { ratings: Ratings; totals: Totals };
+
+/** Games ever finished per game type: the sum of the profile's win/loss/draw record. */
+export type Totals = Partial<Record<GameType, number>>;
+
+/**
+ * The account's profile stats, or `null` if they cannot be read.
+ *
+ * `https://api.chess.com/pub/player/{username}/stats` — 400 bytes gzipped, against a
+ * megabyte of archive, and it answers two questions at once.
+ *
+ * **The ratings** are the fallback and not the answer: a game type played in a month we
+ * fetch is rated by the archive, in the same read as its count. This is for the types with
+ * no game there to be rated by.
+ *
+ * **The totals** are the reason this is now on the counting path rather than off to one
+ * side on a timer. `record` is chess.com's own counter, and it is a different number
+ * reaching us by a different road than the archive — which is exactly what makes it worth
+ * having. When it moves and the archive does not, we know the archive is behind rather
+ * than empty, and the day's count can say so instead of quietly coming up short. See
+ * `pendingOf` in `state/sync.ts`.
+ *
+ * Lifetime figures, note, not today's: only the *change* in them means anything here.
+ *
+ * `no-store` for the reason the archive request has it: the answer is being asked again
+ * because it may have changed, and the copy in the browser's cache is by definition the
+ * one from before.
+ *
+ * Never throws, for the reason `fetchAvatar` does not: it shares this client with the
+ * counting, and a profile that will not load must not take the counting down with it. A
+ * `null` leaves every caller on the last thing it knew, which for the totals means no
+ * movement seen — never a movement invented.
+ */
+export async function fetchStats(
   username: string,
   fetchImpl: Fetcher = fetch,
-): Promise<Ratings | null> {
+): Promise<Stats | null> {
   try {
     const response = await fetchImpl(`${playerUrl(username)}/stats`, { cache: 'no-store' });
     if (!response.ok) return null;
 
-    const body = (await response.json()) as Record<string, { last?: { rating?: number } }>;
+    const body = (await response.json()) as Record<
+      string,
+      { last?: { rating?: number }; record?: Record<string, number> }
+    >;
+
     const ratings: Ratings = {};
+    const totals: Totals = {};
     for (const gameType of GAME_TYPES) {
-      const rating = body[`chess_${gameType}`]?.last?.rating;
+      const entry = body[`chess_${gameType}`];
+
+      const rating = entry?.last?.rating;
       if (typeof rating === 'number') ratings[gameType] = rating;
+
+      // Summed over whatever keys the record carries rather than over `win`, `loss` and
+      // `draw` by name: a fourth outcome appearing one day should raise the total, not be
+      // silently dropped — a total that is short is a game the archive looks late with.
+      const record = entry?.record;
+      if (record !== undefined) {
+        const played = Object.values(record).filter((n) => typeof n === 'number');
+        if (played.length > 0) totals[gameType] = played.reduce((a, b) => a + b, 0);
+      }
     }
-    return ratings;
+    return { ratings, totals };
   } catch {
     return null;
   }

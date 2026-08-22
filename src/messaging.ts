@@ -18,6 +18,15 @@ export type Message = {
    * already expired.
    */
   gameEnded?: boolean;
+  /**
+   * Which game ended, when the page could say.
+   *
+   * The id is chess.com's own, the same one the archive will file the game under, so the
+   * provisional count it starts is retired by identity rather than by guessing from
+   * timestamps. Absent when the modal named no time control, and then nothing is counted
+   * — never a guess at which quota to spend.
+   */
+  finished?: { id: string; gameType: GameType };
   /** Also answer with a {@link View}. What the popup asks for. */
   view?: boolean;
 };

@@ -27,9 +27,23 @@ function gamesOf(state: DayState, gameType: GameType) {
     .sort((a, b) => a.endedAt - b.endedAt);
 }
 
-/** Counts are derived from the games, so they cannot drift out of sync on their own. */
+/** Games chess.com has counted for one game type that the archive has not published. */
+export function pendingOf(state: DayState, gameType: GameType): number {
+  return state.pending?.[gameType] ?? 0;
+}
+
+/**
+ * How many games of one type today.
+ *
+ * The games we have, plus the ones chess.com's own record says exist and the archive has
+ * not handed over. Both are games you played; only one of them has anything else known
+ * about it. Counting the archive alone is what let a stale copy of it read as an
+ * afternoon off — see `pending` on {@link DayState}.
+ *
+ * Otherwise derived from the games rather than stored, so it cannot drift on its own.
+ */
 export function countOf(state: DayState, gameType: GameType): number {
-  return gamesOf(state, gameType).length;
+  return gamesOf(state, gameType).length + pendingOf(state, gameType);
 }
 
 /** How the day went for one game type. Named `Tally` to stay clear of TS's `Record`. */
@@ -38,8 +52,9 @@ export type Tally = { wins: number; losses: number; draws: number };
 /**
  * Wins, losses and draws for one game type today.
  *
- * Derived from the games like every other count, so it cannot drift from `countOf`: the
- * three add up to it.
+ * The three add up to `countOf` **minus** whatever is pending: a game the archive has not
+ * published has no result to file under any of them. Every surface that shows a tally
+ * beside a count has to show the pending games too, or the row will not add up on screen.
  */
 export function tallyOf(state: DayState, gameType: GameType): Tally {
   const tally: Tally = { wins: 0, losses: 0, draws: 0 };
@@ -60,8 +75,12 @@ export function tallyOf(state: DayState, gameType: GameType): Tally {
  * One game whose change is unknown makes the whole day unknown. A total quietly missing a
  * game is worse than no total: it still looks like an answer, and on the day this matters
  * most — the one you came to the popup to check — it would be the game you just lost.
+ *
+ * A pending game is exactly that game. It is known to have been played and nothing else,
+ * so while one is outstanding the day's rating cannot be told.
  */
 export function ratingDeltaOf(state: DayState, gameType: GameType): number | null {
+  if (pendingOf(state, gameType) > 0) return null;
   let total = 0;
   for (const game of gamesOf(state, gameType)) {
     if (game.ratingDelta === undefined) return null;
@@ -70,7 +89,15 @@ export function ratingDeltaOf(state: DayState, gameType: GameType): number | nul
   return total;
 }
 
-/** Consecutive losses at the end of the day, and when the last one happened. */
+/**
+ * Consecutive losses at the end of the day, and when the last one happened.
+ *
+ * Pending games are not in it and cannot be: a streak is made of results, and a pending
+ * game has none. So a cooldown can arrive a few seconds late, when the archive publishes
+ * the loss that completed the streak. That is the one place this design accepts being
+ * behind, because the alternative is guessing that an unknown game was a loss — and the
+ * quota, which does count it, is what holds the line meanwhile.
+ */
 export function lossStreakOf(
   state: DayState,
   gameType: GameType,
@@ -174,8 +201,16 @@ export type GameTypeSummary = {
   gameType: GameType;
   used: number;
   limit: number | null;
-  /** Wins, losses and draws behind `used`. The three always add up to it. */
+  /** Wins, losses and draws behind `used`. With `pending`, the four add up to it. */
   tally: Tally;
+  /**
+   * Games counted from chess.com's record that the archive has not published yet.
+   *
+   * Rendered rather than hidden: they are the difference between a row that adds up and
+   * one that looks broken, and "one still on its way" is the honest thing to say while the
+   * site catches up.
+   */
+  pending: number;
   /** Rating gained or lost today, or `null` when one of the games cannot be measured. */
   ratingDelta: number | null;
   lossStreak: number;
@@ -196,6 +231,7 @@ export function summarize(state: DayState, settings: Settings, now: number): Gam
     used: countOf(state, gameType),
     limit: settings.limits[gameType],
     tally: tallyOf(state, gameType),
+    pending: pendingOf(state, gameType),
     ratingDelta: ratingDeltaOf(state, gameType),
     lossStreak: lossStreakOf(state, gameType).losses,
     decision: evaluate({ state, settings, gameType, now, includeGap: false }),

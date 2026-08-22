@@ -101,7 +101,24 @@ export function blockNote(row: GameTypeSummary): string | null {
  * API can return games we had not counted — does not overflow the bar.
  */
 export function usedFraction(row: GameTypeSummary): number {
+  return fractionOf(row, row.used);
+}
+
+/**
+ * The share of that which is games chess.com has counted and the archive has not published.
+ *
+ * Drawn as its own segment at the end of the bar, so a row that says 4/6 shows four games
+ * of bar however many of them the archive has got round to listing. Taken as the
+ * difference between two clamped fractions rather than as `pending / limit`, so the two
+ * segments together are exactly `usedFraction` and a day over its quota cannot push the
+ * pending slice past the end.
+ */
+export function pendingFraction(row: GameTypeSummary): number {
+  return usedFraction(row) - fractionOf(row, row.used - row.pending);
+}
+
+function fractionOf(row: GameTypeSummary, games: number): number {
   if (row.limit === null) return 0;
   if (isOff(row.limit)) return 1;
-  return Math.min(1, row.used / row.limit);
+  return Math.min(1, games / row.limit);
 }

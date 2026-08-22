@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameTypeSummary } from '../core/policy';
 import { catalogue } from '../test-setup';
-import { blockNote, formatRatingDelta, formatTime, usedFraction } from './format';
+import { blockNote, formatRatingDelta, formatTime, pendingFraction, usedFraction } from './format';
 
 const at = (iso: string) => new Date(iso).getTime();
 
@@ -31,6 +31,7 @@ function row(overrides: Partial<GameTypeSummary>): GameTypeSummary {
     used: 0,
     limit: 5,
     tally: { wins: 0, losses: 0, draws: 0 },
+    pending: 0,
     ratingDelta: 0,
     lossStreak: 0,
     decision: { allow: true },
@@ -143,5 +144,32 @@ describe('usedFraction', () => {
 
   it('no limit means nothing to fill', () => {
     expect(usedFraction(row({ used: 9, limit: null }))).toBe(0);
+  });
+});
+
+/**
+ * The tail of the bar, for games chess.com has counted and the archive has not published.
+ * Drawn faded at the end of what is already spent, never as a slice of its own beyond it.
+ */
+describe('pendingFraction', () => {
+  it('is the share of the bar those games account for', () => {
+    expect(pendingFraction(row({ used: 4, limit: 8, pending: 1 }))).toBe(0.125);
+    expect(pendingFraction(row({ used: 4, limit: 8, pending: 3 }))).toBe(0.375);
+  });
+
+  it('is nothing when the archive is level', () => {
+    expect(pendingFraction(row({ used: 4, limit: 8, pending: 0 }))).toBe(0);
+  });
+
+  /** The two segments are the fill: together they are exactly `usedFraction`, never more. */
+  it('never pushes the fill past the end of the bar', () => {
+    const over = row({ used: 7, limit: 5, pending: 4 });
+    expect(usedFraction(over)).toBe(1);
+    expect(pendingFraction(over)).toBeLessThanOrEqual(1);
+    expect(usedFraction(over) - pendingFraction(over)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('has nothing to draw on a row with no limit', () => {
+    expect(pendingFraction(row({ used: 9, limit: null, pending: 2 }))).toBe(0);
   });
 });

@@ -20,6 +20,7 @@ const view = (used: number): View => ({
       used,
       limit: 6,
       tally: { wins: 0, draws: 0, losses: used },
+      pending: 0,
       ratingDelta: null,
       lossStreak: used,
       decision: { allow: true },

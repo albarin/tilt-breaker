@@ -308,3 +308,26 @@ export function readOwnUsername(root: ParentNode): string | null {
   const name = /\/member\/([^/?#]+)/.exec(href)?.[1];
   return name === undefined ? null : decodeURIComponent(name);
 }
+
+/**
+ * The game type of the game that has just finished, read off the modal on screen.
+ *
+ * The archive is the one that knows what a game was, and this exists for the half-minute
+ * before it says so — long enough to walk back to the lobby and start another. The panel
+ * that offers you a rematch is the only thing on the page that names the time control at
+ * that moment, and it is already read for the block: `findRematchButtons` gathers the
+ * buttons and `classifyClick` judges them, so this asks the same question of the same
+ * elements and adds no new knowledge of the site.
+ *
+ * The buttons are asked in turn because they do not all answer. A plain "Rematch" says
+ * only "the same again"; the "New 1 min" beside it names the control. `null` when none of
+ * them does, which the caller reads as "count nothing" — the behaviour there was before
+ * any of this, never a guess at which quota to spend.
+ */
+export function readFinishedGameType(root: ParentNode): GameType | null {
+  for (const button of findRematchButtons(root)) {
+    const target = classifyClick(button);
+    if (target.kind === 'rematch' && target.gameType !== null) return target.gameType;
+  }
+  return null;
+}

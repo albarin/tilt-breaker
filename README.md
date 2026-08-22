@@ -124,14 +124,32 @@ src/
 
 ### Where the count comes from
 
-From the public monthly archive: `api.chess.com/pub/player/{username}/games/{YYYY}/{MM}`.
-Measured against the live server it answers `cache-control: public, max-age=5` and a game
-shows up seconds after it ends — the 12-hour refresh the docs mention belongs to other
-endpoints. Requests are conditional because the archive runs close to a megabyte mid-month
-and this is polled every few seconds while a finished game is on its way — on the `ETag`,
-not on `Last-Modified`: the server sends both and honours only the first. Measured against
-it, `If-Modified-Since` answers 200 with the whole archive however the stamp is spelled,
-while `If-None-Match` answers 304.
+From the public monthly archive, in its **PGN** representation:
+`api.chess.com/pub/player/{username}/games/{YYYY}/{MM}/pgn`. Requests are conditional
+because the archive runs to about a megabyte mid-month and this is polled every few seconds
+while a finished game is on its way — on the `ETag`, not on `Last-Modified`: the server
+sends both and honours only the first. Measured against it, `If-Modified-Since` answers 200
+with the whole archive however the stamp is spelled, while `If-None-Match` answers 304.
+
+The same games are served as JSON at the same path without the `/pgn`, and that is where
+this used to read them. It moved on 22 Aug 2026, when the JSON copy was measured pinned in
+chess.com's CDN for over half an hour — `cf-cache-status: HIT`, `age: 1916`, against its own
+`max-age=5` — with its `ETag` frozen along with it, so every conditional request answered
+304 and the count sat frozen for hours. Reinstalling fixed it until the next game and then
+froze again, which is the signature of a stuck validator. The PGN twin, asked in the same
+second, revalidated on every request and carried the game that had just finished. The JSON
+is smaller on the wire (320 KB gzipped against a megabyte uncompressed); it was not the
+smaller one that was being served.
+
+Alongside it, `/stats` — 400 bytes gzipped — is read on the same beat, and its `record` is
+chess.com's own count of games finished per game type. Two numbers reaching us by two
+roads: publish a game and both move by one. When the record has moved further than the
+archive has, the difference is a game that exists and has not been listed yet, and it is
+**counted against the quota** on the strength of the record alone. It has no result, no
+rating and no clock, so it is held apart from the games rather than faked into one, the
+popup names it ("1 on the way") instead of filing it as a win, and the day's rating goes
+untold rather than short until the archive catches up. Of the two ways to be wrong about a
+game chess.com has confirmed, only one of them lets you keep playing.
 
 The API has exactly one blind spot: **it takes a few seconds to publish a finished game**.
 Until it does, the gap between games is measured from the _previous_ one — and after a

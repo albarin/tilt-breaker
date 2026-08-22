@@ -6,6 +6,7 @@ import {
   gameIdFromPath,
   gameTypeFromQuickPlay,
   hasGameOverModal,
+  readFinishedGameType,
   readOwnUsername,
   readSelectedGameType,
   gameTypeOfOption,
@@ -465,5 +466,50 @@ describe('spotting the end of a game', () => {
   it('does not see one mid-game', () => {
     render('<div class="board-layout-main"></div>');
     expect(hasGameOverModal(document)).toBe(false);
+  });
+});
+
+/**
+ * What the quota charges the game you have just finished, for the half-minute before the
+ * archive says what it was. The panel offering you another game is the only thing on the
+ * page naming the time control at that moment.
+ */
+describe('readFinishedGameType', () => {
+  it('reads it off the modal that has just appeared', () => {
+    render(MODAL);
+    expect(readFinishedGameType(document)).toBe('bullet');
+  });
+
+  /** The modal can be dismissed; its copy in the sidebar outlives it. */
+  it('reads it off the sidebar copy too', () => {
+    render(SIDEBAR);
+    expect(readFinishedGameType(document)).toBe('blitz');
+  });
+
+  /** "Rematch" says only "the same again". The button beside it is the one that names it. */
+  it('passes over the button that names nothing', () => {
+    render(`
+      <div class="game-over-modal-shell-container">
+        <button id="rematch">Rematch</button>
+        <button id="new">New 10 min</button>
+      </div>`);
+    expect(readFinishedGameType(document)).toBe('rapid');
+  });
+
+  /**
+   * Counting nothing is the answer here, not guessing. Spending the wrong quota is worse
+   * than spending it late, and late is what happens anyway when the archive catches up.
+   */
+  it('says nothing when no button names a control', () => {
+    render(`
+      <div class="game-over-modal-shell-container">
+        <button id="rematch">Rematch</button>
+      </div>`);
+    expect(readFinishedGameType(document)).toBeNull();
+  });
+
+  it('says nothing when there is no modal at all', () => {
+    render(LOBBY);
+    expect(readFinishedGameType(document)).toBeNull();
   });
 });

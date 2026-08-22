@@ -1,9 +1,11 @@
 import { storage } from 'wxt/utils/storage';
+import type { Totals } from '../api/chesscom-api';
 import { dayKeyOf } from '../core/day';
 import {
   DAY_RESET_HOUR,
   DEFAULT_SETTINGS,
   type GameRecord,
+  type GameType,
   type Ratings,
   type Settings,
 } from '../core/types';
@@ -30,6 +32,33 @@ export type DaySnapshot = {
    * is in the new shape.
    */
   etags: Record<string, string>;
+  /**
+   * The two marks `pendingOf` compares, from the last read where the profile answered.
+   * Absent on a snapshot written before this and on the first sync of a day, which is the
+   * same thing to every reader: no movement known, nothing pending.
+   */
+  counters?: Counters;
+  /**
+   * Games chess.com's own record counts that the archive has not published yet, per game
+   * type. Stored rather than recomputed on demand because the profile read that produces
+   * it can fail, and the last thing we knew is the safe thing to keep: forgetting a
+   * pending game lifts a block, and inventing one never happens.
+   */
+  pending?: Partial<Record<GameType, number>>;
+};
+
+/**
+ * What the archive has accounted for, against what chess.com's profile has counted.
+ *
+ * `reflected` is the profile's lifetime total per game type as of the games we hold;
+ * `archived` is how many games those months held when we last read them. The pair only
+ * means anything read together, over the same `months` — see `advance` in `state/sync.ts`.
+ */
+export type Counters = {
+  /** The month keys these were taken over, joined: `'2026-08'`, `'2026-08,2026-09'`. */
+  months: string;
+  reflected: Totals;
+  archived: Totals;
 };
 
 const settingsItem = storage.defineItem<Settings>('local:settings', {
@@ -113,6 +142,47 @@ export function rememberRatings(
 export const lastGameEndItem = storage.defineItem<number | null>('local:lastGameEnd', {
   fallback: null,
 });
+
+/**
+ * Games the page has told us finished, that the archive has not published yet.
+ *
+ * Keyed by chess.com's own game id — the same key the archive files them under — so one
+ * is retired the moment it appears there, by identity and not by comparing clocks. That
+ * is what makes counting it provisionally safe: a game cannot be counted twice, because
+ * both halves are the same key.
+ *
+ * Kept out of the day snapshot on purpose, though it is day-shaped. The snapshot is
+ * rewritten wholesale by every sync, and these are written from a message that arrives in
+ * the middle of one; sharing a record would make the two writers race for it.
+ */
+export type FinishedGame = { gameType: GameType; at: number };
+
+const finishedItem = storage.defineItem<Record<string, FinishedGame>>('local:finished', {
+  fallback: {},
+});
+
+export function getFinished(): Promise<Record<string, FinishedGame>> {
+  return finishedItem.getValue();
+}
+
+/** Records a game the page saw end. Ignores one already recorded, so a retry is free. */
+export function rememberFinishedGame(id: string, gameType: GameType): Promise<void> {
+  return serialize(async () => {
+    const stored = await finishedItem.getValue();
+    if (stored[id] !== undefined) return;
+    await finishedItem.setValue({ ...stored, [id]: { gameType, at: Date.now() } });
+  });
+}
+
+/** Drops the ones that are done: published by the archive, or too old to still be coming. */
+export function forgetFinished(ids: string[]): Promise<void> {
+  if (ids.length === 0) return Promise.resolve();
+  return serialize(async () => {
+    const stored = await finishedItem.getValue();
+    const next = Object.fromEntries(Object.entries(stored).filter(([id]) => !ids.includes(id)));
+    await finishedItem.setValue(next);
+  });
+}
 
 /**
  * The account read from the chess.com session. Persisted so the popup and the refresh

@@ -49,6 +49,10 @@ popup:
   wins: $1W
   draws: $1D
   losses: $1L
+  # A game chess.com has counted that the archive has not listed yet. $1 is how many.
+  # It is already in the count above: this says what is missing from it, not that it is
+  # missing from the count.
+  unpublished: +$1 unpublished
   settings: Settings
   reason:
     tilt: resting until $1

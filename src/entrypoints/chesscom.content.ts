@@ -10,6 +10,7 @@ import {
   gameTypeFromQuickPlay,
   gameTypeOfOption,
   hasGameOverModal,
+  readFinishedGameType,
   readOwnUsername,
   readSelectedGameType,
 } from '../site/chesscom';
@@ -98,7 +99,11 @@ export default defineContentScript({
     }
 
     /** `false` if the background could not be reached, so the caller can try again. */
-    async function refreshStatus(force = false, gameEnded = false): Promise<boolean> {
+    async function refreshStatus(
+      force = false,
+      gameEnded = false,
+      finished?: { id: string; gameType: GameType },
+    ): Promise<boolean> {
       try {
         // The signed-in account rides along on every request: that is how the background
         // knows which user to count without anyone typing it into settings.
@@ -106,6 +111,7 @@ export default defineContentScript({
           force,
           username: readOwnUsername(document),
           ...(gameEnded ? { gameEnded } : {}),
+          ...(finished === undefined ? {} : { finished }),
         });
         decisions = status.decisions;
         blockRematch = status.blockRematch;
@@ -282,13 +288,18 @@ export default defineContentScript({
         return;
       }
 
+      // Read while the modal is still up, which is the only moment it can be read.
+      const gameType = readFinishedGameType(document);
+
       reporting = true;
-      void refreshStatus(true, true).then((delivered) => {
-        reporting = false;
-        if (!delivered) return; // the next tick tries again
-        reported.add(id);
-        log('game finished:', id);
-      });
+      void refreshStatus(true, true, gameType === null ? undefined : { id, gameType }).then(
+        (delivered) => {
+          reporting = false;
+          if (!delivered) return; // the next tick tries again
+          reported.add(id);
+          log('game finished:', id);
+        },
+      );
     }
   },
 });

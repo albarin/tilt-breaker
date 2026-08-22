@@ -3,21 +3,43 @@ import {
   archiveUrl,
   fetchAvatar,
   fetchGamesCovering,
-  fetchRatings,
+  fetchStats,
   monthKey,
   monthsCovering,
 } from './chesscom-api';
+import { toArchive } from './pgn.fixture';
+import type { ApiGame } from '../core/games';
 
 const at = (iso: string) => new Date(iso).getTime();
 
+/**
+ * The archive answers with PGN and `/stats` with JSON, so a fake response has to be able
+ * to be either. A string body is served as text, anything else as JSON.
+ */
 function response(body: unknown, status = 200, etag?: string): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
+    text: async () => (typeof body === 'string' ? body : ''),
     headers: { get: (h: string) => (h === 'etag' ? (etag ?? null) : null) },
   } as Response;
 }
+
+const at2 = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+
+/** One archive game, as PGN, with only the fields these tests look at. */
+function game(url: string): ApiGame {
+  return {
+    url,
+    time_class: 'blitz',
+    end_time: at2('2026-08-08T12:00:00Z'),
+    white: { username: 'alba', result: 'win' },
+    black: { username: 'Rival', result: 'loss' },
+  };
+}
+
+const month = (...urls: string[]) => toArchive(...urls.map(game));
 
 const ONE_DAY = { startMs: at('2026-08-08T00:00:00'), endMs: at('2026-08-09T00:00:00') };
 const ACROSS_MONTHS = { startMs: at('2026-08-31T04:00:00'), endMs: at('2026-09-01T04:00:00') };
@@ -25,10 +47,10 @@ const ACROSS_MONTHS = { startMs: at('2026-08-31T04:00:00'), endMs: at('2026-09-0
 describe('archiveUrl', () => {
   it('pads the month and normalises the username', () => {
     expect(archiveUrl('AlbaJuega', { year: 2026, month: 8 })).toBe(
-      'https://api.chess.com/pub/player/albajuega/games/2026/08',
+      'https://api.chess.com/pub/player/albajuega/games/2026/08/pgn',
     );
     expect(archiveUrl('a b', { year: 2026, month: 12 })).toBe(
-      'https://api.chess.com/pub/player/a%20b/games/2026/12',
+      'https://api.chess.com/pub/player/a%20b/games/2026/12/pgn',
     );
   });
 });
@@ -67,7 +89,7 @@ describe('fetchGamesCovering', () => {
     fetchGamesCovering({ username: 'alba', ...ONE_DAY, etags, fetchImpl });
 
   it('returns the games in the archive', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(response({ games: [{ url: 'x' }] }));
+    const fetchImpl = vi.fn().mockResolvedValue(response(month('x')));
     await expect(run(fetchImpl)).resolves.toMatchObject({ unchanged: false });
   });
 
@@ -85,8 +107,8 @@ describe('fetchGamesCovering', () => {
   it('merges the archives of every month it needs', async () => {
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(response({ games: [{ url: 'august' }] }))
-      .mockResolvedValueOnce(response({ games: [{ url: 'september' }] }));
+      .mockResolvedValueOnce(response(month('august')))
+      .mockResolvedValueOnce(response(month('september')));
     const result = await fetchGamesCovering({ username: 'alba', ...ACROSS_MONTHS, fetchImpl });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(result.games.map((g) => g.url)).toEqual(['august', 'september']);
@@ -96,7 +118,7 @@ describe('fetchGamesCovering', () => {
     const STAMP = 'W/"40d3008742dde2cb45bf2cf501c1eece"';
 
     it('keeps the ETag the server sends back', async () => {
-      const fetchImpl = vi.fn().mockResolvedValue(response({ games: [] }, 200, STAMP));
+      const fetchImpl = vi.fn().mockResolvedValue(response(month(), 200, STAMP));
       await expect(run(fetchImpl)).resolves.toMatchObject({ etags: { '2026-08': STAMP } });
     });
 
@@ -107,7 +129,7 @@ describe('fetchGamesCovering', () => {
      * no cache at all.
      */
     it('sends it back as If-None-Match', async () => {
-      const fetchImpl = vi.fn().mockResolvedValue(response({ games: [] }));
+      const fetchImpl = vi.fn().mockResolvedValue(response(month()));
       await run(fetchImpl, { '2026-08': STAMP });
       expect(fetchImpl).toHaveBeenCalledWith(expect.any(String), {
         headers: { 'If-None-Match': STAMP },
@@ -121,7 +143,7 @@ describe('fetchGamesCovering', () => {
      * one replay of its answer, both predating the game just played.
      */
     it('never reads the browser cache', async () => {
-      const fetchImpl = vi.fn().mockResolvedValue(response({ games: [] }));
+      const fetchImpl = vi.fn().mockResolvedValue(response(month()));
       await run(fetchImpl);
       expect(fetchImpl).toHaveBeenCalledWith(
         expect.any(String),
@@ -147,8 +169,8 @@ describe('fetchGamesCovering', () => {
       const fetchImpl = vi
         .fn()
         .mockResolvedValueOnce(response(null, 304))
-        .mockResolvedValueOnce(response({ games: [{ url: 'new' }] }))
-        .mockResolvedValueOnce(response({ games: [{ url: 'old' }] }, 200, STAMP));
+        .mockResolvedValueOnce(response(month('new')))
+        .mockResolvedValueOnce(response(month('old'), 200, STAMP));
       const result = await fetchGamesCovering({
         username: 'alba',
         ...ACROSS_MONTHS,
@@ -190,8 +212,9 @@ describe('fetchAvatar', () => {
   });
 });
 
-describe('fetchRatings', () => {
+describe('fetchStats', () => {
   const stats = (body: unknown) => vi.fn().mockResolvedValue(response(body));
+  const record = { win: 10, loss: 5, draw: 1 };
 
   it('reads the live rating of each game type off the profile', async () => {
     const fetchImpl = stats({
@@ -200,10 +223,8 @@ describe('fetchRatings', () => {
       chess_rapid: { last: { rating: 1455 } },
     });
 
-    await expect(fetchRatings('Alba', fetchImpl)).resolves.toEqual({
-      bullet: 1204,
-      blitz: 987,
-      rapid: 1455,
+    await expect(fetchStats('Alba', fetchImpl)).resolves.toMatchObject({
+      ratings: { bullet: 1204, blitz: 987, rapid: 1455 },
     });
     expect(fetchImpl).toHaveBeenCalledWith('https://api.chess.com/pub/player/alba/stats', {
       cache: 'no-store',
@@ -216,11 +237,11 @@ describe('fetchRatings', () => {
    */
   it('ignores the rest of the profile', async () => {
     const fetchImpl = stats({
-      chess_daily: { last: { rating: 1600 } },
+      chess_daily: { last: { rating: 1600 }, record },
       chess_blitz: { best: { rating: 1500 } },
       tactics: { highest: { rating: 2000 } },
     });
-    await expect(fetchRatings('alba', fetchImpl)).resolves.toEqual({});
+    await expect(fetchStats('alba', fetchImpl)).resolves.toEqual({ ratings: {}, totals: {} });
   });
 
   /**
@@ -229,19 +250,49 @@ describe('fetchRatings', () => {
    */
   it('leaves out a game type the account has never played', async () => {
     const fetchImpl = stats({ chess_blitz: { last: { rating: 987 } } });
-    await expect(fetchRatings('alba', fetchImpl)).resolves.toEqual({ blitz: 987 });
+    await expect(fetchStats('alba', fetchImpl)).resolves.toMatchObject({
+      ratings: { blitz: 987 },
+    });
+  });
+
+  describe('the games-played totals', () => {
+    it('adds up the profile record per game type', async () => {
+      const fetchImpl = stats({ chess_blitz: { record }, chess_bullet: { record: { win: 2 } } });
+      await expect(fetchStats('alba', fetchImpl)).resolves.toMatchObject({
+        totals: { blitz: 16, bullet: 2 },
+      });
+    });
+
+    /**
+     * Summed over whatever the record holds rather than over three keys by name. A fourth
+     * outcome one day must raise the total: a total that is short reads as an archive that
+     * is late, and would have games waiting on a publication that already happened.
+     */
+    it('counts an outcome it has never seen before', async () => {
+      const fetchImpl = stats({ chess_blitz: { record: { ...record, adjourned: 3 } } });
+      await expect(fetchStats('alba', fetchImpl)).resolves.toMatchObject({
+        totals: { blitz: 19 },
+      });
+    });
+
+    /** A type with no record is left out, the way a type with no rating is. */
+    it('leaves out a game type with no record at all', async () => {
+      const fetchImpl = stats({ chess_blitz: { last: { rating: 987 } } });
+      await expect(fetchStats('alba', fetchImpl)).resolves.toMatchObject({ totals: {} });
+    });
   });
 
   /**
-   * Decoration, like the avatar: it shares this client with the counting, which must not
-   * be disturbed by it. `null` is the caller's cue to keep the last ratings it knew —
-   * `{}` would mean "rated in nothing", and would wipe three numbers off the popup.
+   * It shares this client with the counting, which must not be disturbed by it. `null` is
+   * the caller's cue to keep the last thing it knew — for the ratings that is three
+   * numbers on the popup, and for the totals it is "no movement seen", which is the only
+   * safe reading: a total invented as zero would look like every game since was published.
    */
   it('never throws, whatever goes wrong', async () => {
     const notFound = vi.fn().mockResolvedValue(response({}, 404));
-    await expect(fetchRatings('alba', notFound)).resolves.toBeNull();
+    await expect(fetchStats('alba', notFound)).resolves.toBeNull();
 
     const broken = vi.fn().mockRejectedValue(new Error('offline'));
-    await expect(fetchRatings('alba', broken)).resolves.toBeNull();
+    await expect(fetchStats('alba', broken)).resolves.toBeNull();
   });
 });

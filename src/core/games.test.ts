@@ -24,7 +24,7 @@ function apiGame(id: string, overrides: Partial<ApiGame> = {}): ApiGame {
     time_class: 'blitz',
     end_time: Math.floor(NOON / 1000),
     white: { username: ME, result: 'win' },
-    black: { username: 'Rival', result: 'resigned' },
+    black: { username: 'Rival', result: 'loss' },
     ...overrides,
   };
 }
@@ -70,31 +70,11 @@ describe('toRecord', () => {
       toRecord(
         apiGame('2', {
           white: { username: 'Rival', result: 'win' },
-          black: { username: ME, result: 'checkmated' },
+          black: { username: ME, result: 'loss' },
         }),
         ME,
       )?.result,
     ).toBe('loss');
-  });
-
-  it('recognises draws by their code', () => {
-    ['agreed', 'repetition', 'stalemate', 'insufficient', '50move'].forEach((code, i) => {
-      const game = apiGame(`100${i}`, {
-        white: { username: ME, result: code },
-        black: { username: 'Rival', result: code },
-      });
-      expect(toRecord(game, ME)?.result, code).toBe('draw');
-    });
-  });
-
-  it('treats every other code as a loss', () => {
-    ['checkmated', 'resigned', 'timeout', 'abandoned', 'lose'].forEach((code, i) => {
-      const game = apiGame(`200${i}`, {
-        white: { username: ME, result: code },
-        black: { username: 'Rival', result: 'win' },
-      });
-      expect(toRecord(game, ME)?.result, code).toBe('loss');
-    });
   });
 
   it('compares usernames case-insensitively', () => {
@@ -109,7 +89,7 @@ describe('toRecord', () => {
   it('drops games you did not play', () => {
     const game = apiGame('5', {
       white: { username: 'Uno', result: 'win' },
-      black: { username: 'Otro', result: 'resigned' },
+      black: { username: 'Otro', result: 'loss' },
     });
     expect(toRecord(game, ME)).toBeNull();
   });
@@ -141,7 +121,7 @@ describe('toRecords', () => {
   it('keeps your live games and drops the rest', () => {
     const theirs = apiGame('1', {
       white: { username: 'Uno', result: 'win' },
-      black: { username: 'Otro', result: 'resigned' },
+      black: { username: 'Otro', result: 'loss' },
     });
     const correspondence = apiGame('2', { time_class: 'daily' });
     expect(toRecords([theirs, correspondence, apiGame('3')], ME).records.map((r) => r.id)).toEqual([
@@ -185,16 +165,13 @@ describe('rating deltas', () => {
   });
 
   /**
-   * An unrated game is the one case where zero is a fact rather than a guess: it moved
-   * nothing. It must also not become the mark the next game is measured against, or that
-   * game would be credited with the change this one did not make.
+   * An unrated game needs no case of its own. The archive reports the rating it left
+   * untouched, so it measures as a change of zero and the game after it is still measured
+   * against the same mark — the truth about it, arrived at by subtraction rather than by
+   * a flag. PGN carries no "rated" header and does not need to.
    */
-  it('counts an unrated game as no change, and does not chain through it', () => {
-    const games = [
-      played('1', 0, 1200),
-      played('2', 5, 1200, { rated: false }),
-      played('3', 10, 1206),
-    ];
+  it('measures an unrated game as no change, and does not chain a change through it', () => {
+    const games = [played('1', 0, 1200), played('2', 5, 1200), played('3', 10, 1206)];
     expect(deltas(games)).toEqual([undefined, 0, 6]);
   });
 
@@ -239,9 +216,9 @@ describe('ratings out of the archive', () => {
     expect(ratings([played('2', 5, 1208), played('1', 0, 1200)])).toEqual({ blitz: 1208 });
   });
 
-  /** An unrated game leaves the rating where it was, so it must not report itself. */
+  /** An unrated game leaves the rating where it was, and reports that same number. */
   it('is unmoved by an unrated game', () => {
-    const games = [played('1', 0, 1208), played('2', 5, 1208, { rated: false })];
+    const games = [played('1', 0, 1208), played('2', 5, 1208)];
     expect(ratings(games)).toEqual({ blitz: 1208 });
   });
 
@@ -271,7 +248,7 @@ describe('lastGameEnd', () => {
   it('ignores games that are not yours', () => {
     const theirs = apiGame('1', {
       white: { username: 'Uno', result: 'win' },
-      black: { username: 'Otro', result: 'resigned' },
+      black: { username: 'Otro', result: 'loss' },
     });
     expect(ends([theirs])).toBeNull();
   });

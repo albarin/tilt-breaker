@@ -416,3 +416,73 @@ describe('gap while the archive catches up', () => {
     expect(allows(NOON - 2 * 60_000, NOON)).toBe(false);
   });
 });
+
+/**
+ * A game chess.com's own record counts and the archive has not published yet. It has no
+ * id, no result and no clock — `/stats` reports totals, not games — so it can be counted
+ * and nothing else. See `pending` on `DayState`.
+ */
+describe('games still on their way', () => {
+  const waiting = (games: GameRecord[], pending: Partial<Record<GameType, number>>): DayState => ({
+    ...stateWith(games),
+    pending,
+  });
+
+  it('counts against the quota like any other game', () => {
+    const state = waiting([game('blitz', 'win', NOON)], { blitz: 2 });
+    expect(countOf(state, 'blitz')).toBe(3);
+  });
+
+  /** The block is the whole point: an archive that is late must not hand back a free game. */
+  it('spends the last of a limit', () => {
+    const state = waiting([game('blitz', 'win', NOON)], { blitz: 1 });
+    const settings = settingsWith({ limits: { ...DEFAULT_SETTINGS.limits, blitz: 2 } });
+
+    expect(evaluate({ state, settings, gameType: 'blitz', now: NOON })).toMatchObject({
+      allow: false,
+      reason: 'quota',
+      used: 2,
+    });
+  });
+
+  it('leaves the other game types alone', () => {
+    const state = waiting([], { blitz: 2 });
+    expect(countOf(state, 'bullet')).toBe(0);
+  });
+
+  /** It has no result, so it belongs in none of the three columns. */
+  it('is not filed as a win, a loss or a draw', () => {
+    const state = waiting([game('blitz', 'win', NOON)], { blitz: 2 });
+    expect(tallyOf(state, 'blitz')).toEqual({ wins: 1, losses: 0, draws: 0 });
+  });
+
+  /**
+   * A total quietly missing a game still looks like an answer, and the missing one is the
+   * game you opened the popup to ask about.
+   */
+  it("leaves the day's rating untold rather than short", () => {
+    const state = waiting([game('blitz', 'loss', NOON, -8)], { blitz: 1 });
+    expect(ratingDeltaOf(state, 'blitz')).toBeNull();
+  });
+
+  /**
+   * A streak is made of results and this game has none, so a cooldown can arrive a few
+   * seconds late — when the archive publishes the loss that completed it. The quota, which
+   * does count the game, is what holds the line meanwhile.
+   */
+  it('does not extend a losing streak on a guess', () => {
+    const state = waiting([game('blitz', 'loss', NOON), game('blitz', 'loss', NOON + 1)], {
+      blitz: 1,
+    });
+    expect(lossStreakOf(state, 'blitz').losses).toBe(2);
+  });
+
+  /** The popup has to render it, or the row will not add up: 3 played, one W, and no more. */
+  it('is reported on the row so the count adds up on screen', () => {
+    const state = waiting([game('blitz', 'win', NOON)], { blitz: 2 });
+    const row = summarize(state, settingsWith(), NOON).find((r) => r.gameType === 'blitz');
+
+    expect(row).toMatchObject({ used: 3, pending: 2 });
+    expect(row!.tally.wins + row!.tally.draws + row!.tally.losses + row!.pending).toBe(row!.used);
+  });
+});

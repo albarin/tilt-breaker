@@ -9,6 +9,7 @@
     blockNote,
     formatRatingDelta,
     formatTime,
+    pendingFraction,
     usedFraction,
   } from '../../ui/format';
   import Icon from '../../ui/Icon.svelte';
@@ -112,13 +113,25 @@
               The bar says at a glance what a redundant "N left" used to repeat, and in red
               what a sentence under the row used to. Taken from the decision and not from
               the note below, which most blocks no longer write.
+
+              A game chess.com has counted and the archive has not published gets the end
+              of the bar in the same colour, faded: it is quota spent, which is why it is
+              on the bar at all, and it is not yet a game we can describe, which is why it
+              is not drawn as solid as the ones beside it.
             -->
             <div class="bar">
               <div
                 class="fill"
-                style:width="{usedFraction(row) * 100}%"
+                style:width="{(usedFraction(row) - pendingFraction(row)) * 100}%"
                 style:background={blocked ? '#b0574f' : COLORS[row.gameType]}
               ></div>
+              {#if row.pending > 0}
+                <div
+                  class="fill unpublished"
+                  style:width="{pendingFraction(row) * 100}%"
+                  style:background={blocked ? '#b0574f' : COLORS[row.gameType]}
+                ></div>
+              {/if}
             </div>
 
             <!--
@@ -132,9 +145,21 @@
             -->
             {#if row.used > 0}
               <p class="tally">
-                <span class="win">{i18n.t('popup.wins', [row.tally.wins])}</span>
-                <span class="draw">{i18n.t('popup.draws', [row.tally.draws])}</span>
-                <span class="loss">{i18n.t('popup.losses', [row.tally.losses])}</span>
+                <!--
+                  The three counts appear only once there is a result to put in them. A
+                  game chess.com has counted and the archive has not published yet is on
+                  the row above, in `used`, and here it is named rather than filed as a
+                  loss it may not be — "0W 0D 0L" beside a game you just played would be
+                  three wrong answers where one honest one will do.
+                -->
+                {#if row.tally.wins + row.tally.draws + row.tally.losses > 0}
+                  <span class="win">{i18n.t('popup.wins', [row.tally.wins])}</span>
+                  <span class="draw">{i18n.t('popup.draws', [row.tally.draws])}</span>
+                  <span class="loss">{i18n.t('popup.losses', [row.tally.losses])}</span>
+                {/if}
+                {#if row.pending > 0}
+                  <span class="unpublished">{i18n.t('popup.unpublished', [row.pending])}</span>
+                {/if}
                 {#if row.ratingDelta !== null}
                   <span
                     class="rating"
@@ -273,6 +298,7 @@
   }
 
   .bar {
+    display: flex;
     height: 0.3rem;
     border-radius: 0.15rem;
     background: var(--field);
@@ -283,6 +309,15 @@
     height: 100%;
     border-radius: inherit;
     transition: width 0.25s ease;
+  }
+
+  /*
+    Faded rather than a colour of its own: a second hue on a 0.3rem bar would read as a
+    different kind of game rather than as the same game, less certain. It sits over the
+    track, so what shows through is the empty quota it is on its way to spending.
+  */
+  .fill.unpublished {
+    opacity: 0.45;
   }
 
   .tally {
@@ -301,6 +336,21 @@
 
   .tally .loss {
     color: #e0a8a2;
+  }
+
+  /*
+    Quieter than the counts beside it: it is a game we know of and cannot describe, and it
+    reads as a note about the row rather than as a fourth result.
+
+    Pushed to the far edge, into the place the day's rating would have taken. The two can
+    never appear together — a game we cannot describe is what makes the rating untellable,
+    which is `ratingDeltaOf` returning null — so this stands where the missing number
+    would have been, which is the plainest way to say why it is missing.
+  */
+  .tally .unpublished {
+    margin-left: auto;
+    font-weight: 500;
+    font-style: italic;
   }
 
   /* Pushed to the right edge, away from the three counts it does not belong with. */
