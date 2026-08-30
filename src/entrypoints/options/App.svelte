@@ -276,6 +276,7 @@
 
       <section>
         <h2>{i18n.t('options.rematch.heading')}</h2>
+        <p class="hint">{i18n.t('options.rematch.hint')}</p>
         <label class="check">
           <input
             type="checkbox"
@@ -283,6 +284,19 @@
             onchange={(e) => save({ blockRematch: e.currentTarget.checked })}
           />
           <span>{i18n.t('options.rematch.label')}</span>
+        </label>
+      </section>
+
+      <section>
+        <h2>{i18n.t('options.resign.heading')}</h2>
+        <p class="hint">{i18n.t('options.resign.hint')}</p>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={settings.hideResign}
+            onchange={(e) => save({ hideResign: e.currentTarget.checked })}
+          />
+          <span>{i18n.t('options.resign.label')}</span>
         </label>
       </section>
     {/key}

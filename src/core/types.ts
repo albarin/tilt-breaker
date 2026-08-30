@@ -64,6 +64,21 @@ export type Settings = {
    * chaining a game is an impulse worth stopping, not whether the quota applies.
    */
   blockRematch: boolean;
+  /**
+   * Hide chess.com's resign button.
+   *
+   * Every other rule here guards the way *into* a game; this one guards the way out. A
+   * game going badly is one click from being over, and the game that follows it is the
+   * one you never decided to play — resigning is how a bad position turns into another
+   * bad position five minutes later.
+   *
+   * Hidden and not greyed out, the only control treated that way. The blocks grey things
+   * because a refusal has to look deliberate; this refuses nothing you would otherwise be
+   * owed, so there is no refusal to explain, only a button that is not there.
+   *
+   * Off by default: some games are worth resigning, and that judgement is yours.
+   */
+  hideResign: boolean;
 };
 
 export type DayState = {
@@ -96,4 +111,5 @@ export const DEFAULT_SETTINGS: Settings = {
   tilt: { losses: 3 },
   gapMinutes: 15,
   blockRematch: true,
+  hideResign: false,
 };

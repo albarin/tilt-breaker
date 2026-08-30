@@ -17,7 +17,12 @@ into your rapid.
   a counting rule: that button chains games without you ever deciding to play them.
   Walking back to the lobby takes a few seconds, and those seconds are the decision.
 - **Everything blocked is greyed out, never hidden.** One treatment for every control it
-  refuses, so a refusal always looks like a refusal — not like the page breaking.
+  refuses, so a refusal always looks like a refusal — not like the page breaking. The one
+  exception is off by default and asked for by hand: the resign button can be hidden, and
+  hiding is right there because nothing is being refused — you turned the button off.
+- **Resigning can be taken off the board.** Optional, and off unless you ask. Every other
+  rule guards the way into a game; this one guards the way out, where one click turns a
+  position going badly into a lobby and the next game.
 - **Counting comes from chess.com's public API**, not from reading the page. That is what
   actually knows the game type and result of every game, draws included, and it picks up
   what you play on mobile too.

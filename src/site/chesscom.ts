@@ -92,6 +92,15 @@ export const SEL = {
    */
   gameOverClose: '[class*="game-over-modal-header-close"]',
   /**
+   * The resign button, under the board while a game is on.
+   *
+   * Its own domain class, and it is the whole button rather than a wrapper. Neither the
+   * label nor the glyph would do here: the same button says `Abort` for the first moves
+   * and `Resign` after them, in whatever language you read the site in, and the
+   * `game-flag` glyph on it is one chess.com hands to more than this.
+   */
+  resign: '.resign-button-component',
+  /**
    * Your own profile link, in the sidebar nav. This is what lets us know which account
    * you are signed in as without you typing it.
    *
@@ -295,6 +304,17 @@ export function findRematchButtons(root: ParentNode): Element[] {
   return Array.from(root.querySelectorAll(everywhere)).filter(
     (button) => classifyClick(button).kind === 'rematch',
   );
+}
+
+/**
+ * The resign buttons on screen, so they can be hidden.
+ *
+ * Plural for the reason `findRematchButtons` is: chess.com puts the controls in more than
+ * one place depending on the width of the window, and asking for all of them costs
+ * nothing where there is only one.
+ */
+export function findResignButtons(root: ParentNode): Element[] {
+  return Array.from(root.querySelectorAll(SEL.resign));
 }
 
 /**

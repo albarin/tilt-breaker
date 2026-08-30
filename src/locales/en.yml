@@ -83,7 +83,12 @@ options:
     label: Losses
   rematch:
     heading: Rematches
+    hint: Rematch and New N min stay blocked even with games left in the day.
     label: Block the rematch button
+  resign:
+    heading: Resigning
+    hint: The resign button is taken off the board while you are playing.
+    label: Hide the resign button
   saving: Saving…
   saved: Saved
   saveFailed: Not saved. The fields show what is stored.

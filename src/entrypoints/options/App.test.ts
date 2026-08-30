@@ -36,6 +36,12 @@ function edit(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+/** The two checkboxes, in DOM order: block the rematch button, hide the resign one. */
+const toggle = (name: 'rematch' | 'resign') =>
+  document.querySelectorAll('input[type="checkbox"]')[
+    { rematch: 0, resign: 1 }[name]
+  ] as HTMLInputElement;
+
 const toast = () => document.querySelector('.toast')?.textContent?.trim() ?? null;
 
 const confirmation = () => document.querySelector('dialog') as HTMLDialogElement;
@@ -145,11 +151,20 @@ describe('the settings page', () => {
 
   it('saves the rematch toggle', async () => {
     await open();
-    const checkbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox = toggle('rematch');
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
 
     await vi.waitFor(async () => expect((await getSettings()).blockRematch).toBe(false));
+  });
+
+  it('saves the resign toggle', async () => {
+    await open();
+    const checkbox = toggle('resign');
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(async () => expect((await getSettings()).hideResign).toBe(true));
   });
 
   /**

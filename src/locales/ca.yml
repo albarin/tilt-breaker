@@ -57,7 +57,12 @@ options:
     label: Derrotes
   rematch:
     heading: Revenges
+    hint: Revenja i Nova partida queden bloquejades encara que et quedin partides del dia.
     label: Bloqueja el botó de revenja
+  resign:
+    heading: Abandonar
+    hint: El botó d'abandonar desapareix del tauler mentre jugues.
+    label: Amaga el botó d'abandonar
   saving: S'està desant…
   saved: Desat
   saveFailed: No s'ha desat. Els camps mostren el que hi ha emmagatzemat.

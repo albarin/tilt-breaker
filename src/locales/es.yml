@@ -57,7 +57,12 @@ options:
     label: Derrotas
   rematch:
     heading: Revanchas
+    hint: Revancha y Nueva partida quedan bloqueadas aunque te queden partidas del día.
     label: Bloquear el botón de revancha
+  resign:
+    heading: Abandonar
+    hint: El botón de abandonar desaparece del tablero mientras juegas.
+    label: Ocultar el botón de abandonar
   saving: Guardando…
   saved: Guardado
   saveFailed: No se ha guardado. Los campos muestran lo que hay almacenado.

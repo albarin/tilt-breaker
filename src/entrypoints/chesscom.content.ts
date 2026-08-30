@@ -1,11 +1,12 @@
 import type { Decision } from '../core/policy';
 import { GAME_TYPES, type GameType } from '../core/types';
 import { sendMessage } from '../messaging';
-import { lastGameEndItem, watchSettings } from '../state/storage';
+import { getSettings, lastGameEndItem, watchSettings } from '../state/storage';
 import {
   SEL,
   classifyClick,
   findRematchButtons,
+  findResignButtons,
   gameIdFromPath,
   gameTypeFromQuickPlay,
   gameTypeOfOption,
@@ -34,12 +35,24 @@ const SETTLE_MS = 5_000;
  * breaking rather than as a rule. Greyed out says who did it and why.
  */
 const BLOCKED_ATTR = 'data-tilt-breaker-blocked';
+/**
+ * Marks the resign button when you have asked for it to be gone.
+ *
+ * The one thing this extension hides rather than greys, and a separate mark because it is
+ * a separate thing: nothing above is being refused. You turned the button off, so it is
+ * off — greying it would be the extension answering a click you never wanted to make.
+ */
+const HIDDEN_ATTR = 'data-tilt-breaker-hidden';
 
 const CSS = `
   [${BLOCKED_ATTR}] {
     opacity: 0.4 !important;
     filter: grayscale(1) !important;
     cursor: not-allowed !important;
+  }
+
+  [${HIDDEN_ATTR}] {
+    display: none !important;
   }
 `;
 
@@ -64,6 +77,7 @@ export default defineContentScript({
     let reporting = false;
     let decisions: Partial<Record<GameType, Decision>> = {};
     let blockRematch = false;
+    let hideResign = false;
 
     const overlay = createOverlay(document);
     injectStyle();
@@ -75,6 +89,7 @@ export default defineContentScript({
     ctx.addEventListener(document, 'click', onClickCapture, { capture: true });
 
     void refreshStatus();
+    void refreshSettings();
     ctx.setInterval(() => void refreshStatus(), STATUS_REFRESH_MS);
     ctx.setInterval(tick, POLL_MS);
     tick();
@@ -89,7 +104,10 @@ export default defineContentScript({
      * click "Start Game" in a lobby that was already open. It only changes when a game
      * actually ends, so there is no loop to fall into.
      */
-    watchSettings(() => void refreshStatus(true));
+    watchSettings(() => {
+      void refreshStatus(true);
+      void refreshSettings();
+    });
     lastGameEndItem.watch(() => void refreshStatus(true));
 
     function injectStyle(): void {
@@ -123,6 +141,18 @@ export default defineContentScript({
         blockRematch = false;
         return false;
       }
+    }
+
+    /**
+     * Reads the settings the page enforces on its own.
+     *
+     * Hiding the resign button is a preference and not a decision: nothing is counted or
+     * judged to know it, so it is read straight from storage rather than asked of the
+     * background. That also keeps it honest when the background cannot be reached — a
+     * button you asked to be rid of should not come back because a fetch failed.
+     */
+    async function refreshSettings(): Promise<void> {
+      hideResign = (await getSettings()).hideResign;
     }
 
     function blockedReason(gameType: GameType | null): Extract<Decision, { allow: false }> | null {
@@ -223,6 +253,10 @@ export default defineContentScript({
       // the same two cases the click interceptor answers, painted the same way.
       // Judged one by one, and by the same rule the click gets: a button that names a
       // spent game type is refused while the others on the same panel are not.
+      for (const button of findResignButtons(document)) {
+        button.toggleAttribute(HIDDEN_ATTR, hideResign);
+      }
+
       const refusedAlways = blockRematch || blanketBlock() !== null;
       for (const button of findRematchButtons(document)) {
         const click = classifyClick(button);

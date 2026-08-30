@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   classifyClick,
   findRematchButtons,
+  findResignButtons,
   gameIdFromPath,
   gameTypeFromQuickPlay,
   hasGameOverModal,
@@ -310,6 +311,34 @@ describe('classifyClick', () => {
     render('<button id="other">Resign</button>');
     expect(classifyClick(el('other'))).toEqual({ kind: 'other' });
     expect(classifyClick(null)).toEqual({ kind: 'other' });
+  });
+});
+
+describe('findResignButtons', () => {
+  /**
+   * The controls under the board while a game is on, as the live site renders them: the
+   * draw offer, and the button that is `Abort` for the first moves and `Resign` after —
+   * one component under both names, which is why neither the word nor the glyph is read.
+   */
+  const CONTROLS = `
+    <div class="game-controls-secondary-component">
+      <button id="draw" aria-label="Draw" class="draw-button-component">
+        <span class="cc-icon-glyph_5d3d43e"><svg data-glyph="handshake"></svg></span>
+      </button>
+      <button id="resign" aria-label="Abort" class="resign-button-component">
+        <span class="cc-icon-glyph_5d3d43e"><svg data-glyph="game-flag"></svg></span>
+      </button>
+    </div>
+  `;
+
+  it('finds the resign button, whichever of its two names it wears', () => {
+    render(CONTROLS);
+    expect(findResignButtons(document).map((b) => b.id)).toEqual(['resign']);
+  });
+
+  it('finds nothing when there is no game on', () => {
+    render(LOBBY);
+    expect(findResignButtons(document)).toEqual([]);
   });
 });
 
