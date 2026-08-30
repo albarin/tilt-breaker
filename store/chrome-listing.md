@@ -43,13 +43,15 @@ A stop after a losing streak. Three losses in a row in one game type locks it fo
 
 No rematches. The rematch button is blocked always, quota or no quota. It is the button that turns one game into five before you have decided to play them, and walking back to the lobby takes a few seconds that are the decision itself.
 
+No resign button, if you would rather not have one. Off unless you turn it on. Every other rule guards the way into a game; this one guards the way out, where a position going badly is one click from over and the game after it is the one you never decided to play.
+
 HOW IT COUNTS
 
 From chess.com's own public API, not by watching the page. So it knows the real game type and result of every game, draws included, and it counts what you play on your phone too. The page is read for one thing: the moment a game ends. chess.com takes a little while to publish a finished game, and that wait used to be a minute in which the cap was short by the game you had just played.
 
 WHAT IT WILL NOT DO
 
-It never interrupts a game in progress, because abandoning costs rating. It only blocks the buttons that start a new one.
+It never interrupts a game in progress, because abandoning costs rating. It only blocks the buttons that start a new one — and hides the resign button, which it does only if you ask it to.
 
 There is no "just this once" button, no observe-only mode and no account to configure. Any of the three would be a one-click way around the very thing you asked it to do. If you need out, disable the extension: deliberately more work than a click.
 
@@ -100,7 +102,7 @@ Tilt Breaker limits how many games the user plays on chess.com per day. Everythi
 ### storage
 
 ```text
-Stores the user's own settings (daily limit per game type, minutes between games, losing-streak threshold, whether to block the rematch button) and a cached count of today's games so the popup can render without re-querying. Everything stays in chrome.storage.local and is never transmitted.
+Stores the user's own settings (daily limit per game type, minutes between games, losing-streak threshold, whether to block the rematch button, whether to hide the resign button) and a cached count of today's games so the popup can render without re-querying. Everything stays in chrome.storage.local and is never transmitted.
 ```
 
 ### alarms
