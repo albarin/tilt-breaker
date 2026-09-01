@@ -3,6 +3,7 @@
   import { i18n } from '#i18n';
   import { NO_ACCOUNT_HINT, noAccountAround, watchAccount } from '../../ui/account.svelte';
   import { watchView, type View } from '../../ui/load';
+  import { isOff } from '../../core/policy';
   import {
     COLORS,
     NAMES,
@@ -17,12 +18,14 @@
   let view = $state<View | null>(null);
 
   /**
-   * Only game types that have a quota are shown.
+   * Only game types that have a quota to spend today are shown.
    *
-   * The others would be a reminder that you can still go play something else, which is
-   * the opposite of what is needed when you open this.
+   * A type with no limit would be a reminder that you can still go play something else,
+   * which is the opposite of what is needed when you open this. A type set to zero is
+   * that same reminder in reverse: you have already decided not to play it today, and a
+   * permanently full "0/0" bar is a row that can never change while you look at it.
    */
-  const limited = $derived(view?.rows.filter((r) => r.limit !== null) ?? []);
+  const limited = $derived(view?.rows.filter((r) => r.limit !== null && !isOff(r.limit)) ?? []);
 
   // Kept current while the popup is open: the game you have just played reaches the
   // archive a few seconds after it ends, which is usually mid-way through reading this.
