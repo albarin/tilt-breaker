@@ -93,15 +93,80 @@ describe('fetchGamesCovering', () => {
     await expect(run(fetchImpl)).resolves.toMatchObject({ unchanged: false });
   });
 
-  it('a month with no games (404) is an empty list, not an error', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(response({}, 404));
-    await expect(run(fetchImpl)).resolves.toMatchObject({ games: [] });
+  it('a month with no games is an empty body, not an error', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response(''));
+    await expect(run(fetchImpl)).resolves.toMatchObject({ games: [], unchanged: false });
   });
 
-  // An empty list from an error would look like "no games today" and lift the block.
-  it('a server error propagates rather than pretending you did not play', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(response({}, 500));
-    await expect(run(fetchImpl)).rejects.toThrow('500');
+  /**
+   * On 9 Sep 2026 the PGN endpoint answered 404 for the current month of every account: a
+   * Twirp "internal error" wearing a not-found status. Read as "no games this month", it
+   * emptied the day. The JSON twin at the same path kept answering, so that is where a
+   * month the PGN will not give up is asked for.
+   */
+  describe('when the PGN endpoint fails', () => {
+    const JSON_GAME = {
+      url: 'https://www.chess.com/game/live/1',
+      time_control: '180',
+      end_time: at2('2026-08-08T12:00:00Z'),
+      white: { username: 'alba', result: 'win', rating: 800 },
+      black: { username: 'Rival', result: 'checkmated', rating: 790 },
+    };
+
+    it('a 404 is asked again as JSON, never read as an empty month', async () => {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValueOnce(response({}, 404))
+        .mockResolvedValueOnce(response({ games: [JSON_GAME] }, 200, 'json-stamp'));
+
+      const result = await run(fetchImpl);
+
+      expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+        'https://api.chess.com/pub/player/alba/games/2026/08/pgn',
+        'https://api.chess.com/pub/player/alba/games/2026/08',
+      ]);
+      expect(result.games).toEqual([
+        {
+          url: JSON_GAME.url,
+          time_class: 'blitz',
+          end_time: JSON_GAME.end_time,
+          white: { username: 'alba', result: 'win', rating: 800 },
+          black: { username: 'Rival', result: 'loss', rating: 790 },
+        },
+      ]);
+      expect(result).toMatchObject({ unchanged: false, etags: { '2026-08': 'json-stamp' } });
+    });
+
+    it('a 500 takes the same road', async () => {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValueOnce(response({}, 500))
+        .mockResolvedValueOnce(response({ games: [] }));
+      await expect(run(fetchImpl)).resolves.toMatchObject({ games: [], unchanged: false });
+    });
+
+    it('a JSON stamp that still matches is a month unchanged', async () => {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValueOnce(response({}, 404))
+        .mockResolvedValueOnce(response(null, 304));
+      await expect(run(fetchImpl, { '2026-08': 'json-stamp' })).resolves.toMatchObject({
+        unchanged: true,
+        etags: { '2026-08': 'json-stamp' },
+      });
+      expect(fetchImpl.mock.calls[1]![1]).toMatchObject({
+        headers: { 'If-None-Match': 'json-stamp' },
+      });
+    });
+
+    // An empty list from an error would look like "no games today" and lift the block.
+    it('both failing propagates rather than pretending you did not play', async () => {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValueOnce(response({}, 404))
+        .mockResolvedValueOnce(response({}, 500));
+      await expect(run(fetchImpl)).rejects.toThrow('404 (PGN) and 500 (JSON)');
+    });
   });
 
   it('merges the archives of every month it needs', async () => {

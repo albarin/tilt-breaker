@@ -2,7 +2,7 @@
   "name": "tilt-breaker",
   "description": "Daily per-time-class game quota for chess.com",
   "private": true,
-  "version": "1.7.1",
+  "version": "1.7.2",
   "type": "module",
   "scripts": {
     "dev": "wxt",

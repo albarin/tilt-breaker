@@ -1,4 +1,5 @@
 import type { ApiGame } from '../core/games';
+import { parseJsonArchive } from './json';
 import { parseArchive } from './pgn';
 import { GAME_TYPES, type GameType, type Ratings } from '../core/types';
 
@@ -68,8 +69,13 @@ function playerUrl(username: string): string {
   return `https://api.chess.com/pub/player/${encodeURIComponent(username.toLowerCase())}`;
 }
 
+/** The month's JSON representation. The PGN one is this with `/pgn` on the end. */
+export function jsonArchiveUrl(username: string, month: Month): string {
+  return `${playerUrl(username)}/games/${monthKey(month).replace('-', '/')}`;
+}
+
 export function archiveUrl(username: string, month: Month): string {
-  return `${playerUrl(username)}/games/${monthKey(month).replace('-', '/')}/pgn`;
+  return `${jsonArchiveUrl(username, month)}/pgn`;
 }
 
 /** `ETag`s per month, so we only ask for what changed. */
@@ -82,20 +88,9 @@ export type ArchiveResult = {
   etags: Etags;
 };
 
-/**
- * Downloads one monthly archive.
- *
- * A 404 means "you did not play that month", which is not an error. Anything else throws:
- * we never invent an empty list, because an empty list would look like "no games today"
- * and would lift the block.
- */
-async function fetchMonth(
-  username: string,
-  month: Month,
-  previous: string | undefined,
-  fetchImpl: Fetcher,
-): Promise<{ games: ApiGame[] | null; etag?: string }> {
-  const response = await fetchImpl(archiveUrl(username, month), {
+/** One request for one representation of a month, conditional on the stamp we hold. */
+function ask(url: string, previous: string | undefined, fetchImpl: Fetcher): Promise<Response> {
+  return fetchImpl(url, {
     headers: previous === undefined ? {} : { 'If-None-Match': previous },
     /*
      * Never the browser's copy. The archive is served `max-age=5`, so a request made
@@ -107,13 +102,51 @@ async function fetchMonth(
      */
     cache: 'no-store',
   });
+}
 
-  if (response.status === 304) return { games: null, etag: previous };
-  if (response.status === 404) return { games: [] };
-  if (!response.ok) throw new Error(`chess.com API responded ${response.status}`);
+type MonthResult = { games: ApiGame[] | null; etag?: string };
 
+function withStamp(games: ApiGame[], response: Response): MonthResult {
   const etag = response.headers.get('etag') ?? undefined;
-  return { games: parseArchive(await response.text()), ...(etag === undefined ? {} : { etag }) };
+  return { games, ...(etag === undefined ? {} : { etag }) };
+}
+
+/**
+ * Downloads one monthly archive.
+ *
+ * A month you did not play is a 200 with nothing in it, in either representation. A 404
+ * is **not** that, though this used to read it so: on 9 Sep 2026 the PGN endpoint answered
+ * 404 for the current month of every account on the site, a Twirp "internal error" wearing
+ * a not-found status and cached by the CDN. Read as "no games this month" it emptied the
+ * day, and the month's every game came back as unpublished — which held the quota, but
+ * with numbers that were not true.
+ *
+ * So anything the PGN endpoint will not answer is asked of the JSON one, which was fine
+ * that day. It is the second road and not the first because `pgn.ts` measured it pinned in
+ * the CDN on 22 Aug; a copy that may be stale is still the better of the two answers when
+ * the other is no answer at all. Only when both fail does this throw: we never invent an
+ * empty list, because an empty list would look like "no games today" and would lift the
+ * block.
+ *
+ * One stamp per month, whichever representation it came from. Sent to the other one it
+ * simply does not match, and that costs a full read, not a wrong one.
+ */
+async function fetchMonth(
+  username: string,
+  month: Month,
+  previous: string | undefined,
+  fetchImpl: Fetcher,
+): Promise<MonthResult> {
+  const pgn = await ask(archiveUrl(username, month), previous, fetchImpl);
+  if (pgn.status === 304) return { games: null, etag: previous };
+  if (pgn.ok) return withStamp(parseArchive(await pgn.text()), pgn);
+
+  const json = await ask(jsonArchiveUrl(username, month), previous, fetchImpl);
+  if (json.status === 304) return { games: null, etag: previous };
+  if (!json.ok) {
+    throw new Error(`chess.com API responded ${pgn.status} (PGN) and ${json.status} (JSON)`);
+  }
+  return withStamp(parseJsonArchive(await json.json()), json);
 }
 
 /** Every game from the months covering the given window. */

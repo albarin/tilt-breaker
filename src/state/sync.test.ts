@@ -375,6 +375,40 @@ describe('games chess.com has counted that the archive has not published', () =>
   });
 
   /**
+   * What 9 Sep 2026 looked like: the PGN endpoint answering 404 for the whole month, of
+   * every account. Read as "no games this month" it emptied the day and walked the mark
+   * back by the month, so every game of the month came back as unpublished — 40 bullet,
+   * 94 blitz, 22 rapid, on a popup meant to show a day. The JSON twin is asked instead,
+   * and the day reads as it did.
+   */
+  it('a PGN outage neither empties the day nor invents unpublished games', async () => {
+    await seeded();
+
+    const json = {
+      games: [
+        {
+          url: apiGame('1').url,
+          time_control: '60',
+          end_time: apiGame('1').end_time,
+          white: { username: ME, result: 'win' },
+          black: { username: 'Rival', result: 'resigned' },
+        },
+      ],
+    };
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith('/stats')) return response(played(40));
+      if (url.endsWith('/pgn')) return response({}, 404);
+      return response(json, 200, 'json-stamp');
+    }) as unknown as typeof fetch;
+
+    const outcome = await sync(fetchImpl, true);
+
+    expect(outcome.ok).toBe(true);
+    expect(countOf(outcome.state, 'bullet')).toBe(1);
+    expect(outcome.state.pending).toEqual({});
+  });
+
+  /**
    * The archive counts every game and the profile record counts rated ones, so the archive
    * can be the one that is ahead. There is nothing to wait for in that direction, and a
    * negative difference must never subtract from the quota.
